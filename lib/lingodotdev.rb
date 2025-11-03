@@ -46,17 +46,61 @@ rescue StandardError => e
   # This ensures backwards compatibility if OpenSSL behavior changes
 end
 
+# Ruby SDK for Lingo.dev localization and translation API.
+#
+# This module provides a simple and powerful interface for localizing content
+# in Ruby applications. It supports text, object (Hash), and chat message
+# localization with batch operations, progress tracking, and concurrent processing.
+#
+# @example Basic usage
+#   engine = LingoDotDev::Engine.new(api_key: 'your-api-key')
+#   result = engine.localize_text('Hello world', target_locale: 'es')
+#   puts result # => "Hola mundo"
+#
+# @see Engine
 module LingoDotDev
+  # Base error class for all SDK errors.
   class Error < StandardError; end
+
+  # Error raised for invalid arguments.
   class ArgumentError < Error; end
+
+  # Error raised for API request failures.
   class APIError < Error; end
+
+  # Error raised for server-side errors (5xx responses).
   class ServerError < APIError; end
+
+  # Error raised for authentication failures.
   class AuthenticationError < APIError; end
+
+  # Error raised for validation failures (invalid input or configuration).
   class ValidationError < ArgumentError; end
 
+  # Configuration for the Lingo.dev Engine.
+  #
+  # Holds API credentials and batch processing settings.
   class Configuration
-    attr_accessor :api_key, :api_url, :batch_size, :ideal_batch_item_size
+    # @return [String] the Lingo.dev API key
+    attr_accessor :api_key
 
+    # @return [String] the API endpoint URL
+    attr_accessor :api_url
+
+    # @return [Integer] maximum number of items per batch (1-250)
+    attr_accessor :batch_size
+
+    # @return [Integer] target word count per batch item (1-2500)
+    attr_accessor :ideal_batch_item_size
+
+    # Creates a new Configuration instance.
+    #
+    # @param api_key [String] your Lingo.dev API key (required)
+    # @param api_url [String] the API endpoint URL (default: 'https://engine.lingo.dev')
+    # @param batch_size [Integer] maximum items per batch, 1-250 (default: 25)
+    # @param ideal_batch_item_size [Integer] target word count per batch item, 1-2500 (default: 250)
+    #
+    # @raise [ValidationError] if any parameter is invalid
     def initialize(api_key:, api_url: 'https://engine.lingo.dev', batch_size: 25, ideal_batch_item_size: 250)
       @api_key = api_key
       @api_url = api_url

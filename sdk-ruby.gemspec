@@ -10,12 +10,12 @@ Gem::Specification.new do |spec|
 
   spec.summary = "Ruby SDK for Lingo.dev localization API"
   spec.description = "A Ruby SDK for integrating with the Lingo.dev localization and translation engine API."
-  spec.homepage = "https://github.com/lingodev/sdk-ruby"
+  spec.homepage = "https://github.com/lingodotdev/sdk-ruby"
   spec.required_ruby_version = ">= 3.2.0"
 
   spec.metadata["allowed_push_host"] = "https://rubygems.org"
   spec.metadata["homepage_uri"] = spec.homepage
-  spec.metadata["source_code_uri"] = "https://github.com/lingodev/sdk-ruby"
+  spec.metadata["source_code_uri"] = "https://github.com/lingodotdev/sdk-ruby"
 
   # Specify which files should be added to the gem when it is released.
   # The `git ls-files -z` loads the files in the RubyGem that have been added into git.

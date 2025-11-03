@@ -82,7 +82,7 @@ On error (e.g., missing or invalid API key):
 The SDK is integrated via a local path reference in the `Gemfile`:
 
 ```ruby
-gem "sdk-ruby", path: "../../"
+gem "lingodotdev", path: "../../"
 ```
 
 The translation logic is implemented in `app/controllers/translate_controller.rb`:

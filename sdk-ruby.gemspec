@@ -3,7 +3,7 @@
 require_relative "lib/sdk/ruby/version"
 
 Gem::Specification.new do |spec|
-  spec.name = "sdk-ruby"
+  spec.name = "lingodotdev"
   spec.version = Sdk::Ruby::VERSION
   spec.authors = ["TODO: Write your name"]
   spec.email = ["TODO: Write your email address"]

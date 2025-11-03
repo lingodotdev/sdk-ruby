@@ -18,7 +18,7 @@ The Lingo.dev Ruby SDK provides a simple and powerful interface for localizing c
 Add this line to your application's Gemfile:
 
 ```ruby
-gem 'sdk-ruby'
+gem 'lingodotdev'
 ```
 
 And then execute:
@@ -30,7 +30,7 @@ bundle install
 Or install it yourself with:
 
 ```bash
-gem install sdk-ruby
+gem install lingodotdev
 ```
 
 ## Quick start

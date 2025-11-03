@@ -1,10 +1,10 @@
 # frozen_string_literal: true
 
-require_relative "lib/sdk/ruby/version"
+require_relative "lib/lingodotdev/version"
 
 Gem::Specification.new do |spec|
   spec.name = "lingodotdev"
-  spec.version = Sdk::Ruby::VERSION
+  spec.version = LingoDotDev::VERSION
   spec.authors = ["David Turnbull"]
   spec.email = ["david@lingo.dev"]
 

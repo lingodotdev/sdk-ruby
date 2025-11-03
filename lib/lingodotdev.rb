@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require_relative "ruby/version"
+require_relative "lingodotdev/version"
 require 'net/http'
 require 'uri'
 require 'json'
@@ -539,3 +539,4 @@ module LingoDotDev
     end
   end
 end
+

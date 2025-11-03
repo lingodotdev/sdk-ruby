@@ -3,7 +3,7 @@
 require 'bundler/setup'
 require 'dotenv/load'
 require 'rspec'
-require 'sdk/ruby'
+require 'lingodotdev'
 
 # Require all spec support files
 Dir['./spec/support/**/*.rb'].sort.each { |f| require f }

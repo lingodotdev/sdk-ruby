@@ -1,14 +1,14 @@
 # frozen_string_literal: true
 
-require 'sdk/ruby'
+require 'lingodotdev'
 
 class TranslateController < ApplicationController
   def translate
     api_key = ENV['LINGODOTDEV_API_KEY'] || 'your-api-key-here'
 
-    engine = LingoDotDev::Engine.new(api_key: api_key)
-    translated = engine.localize_text('Hello world', target_locale: 'es')
-    engine.close
+    translated = LingoDotDev::Engine.open(api_key: api_key) do |engine|
+      engine.localize_text('Hello world', target_locale: 'es')
+    end
 
     render json: {
       original: 'Hello world',

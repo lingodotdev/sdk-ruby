@@ -36,7 +36,7 @@ gem install lingodotdev
 ## Quick start
 
 ```ruby
-require 'sdk/ruby'
+require 'lingodotdev'
 
 # Create an engine instance
 engine = LingoDotDev::Engine.new(api_key: 'your-api-key')

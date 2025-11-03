@@ -171,7 +171,6 @@ module LingoDotDev
         batch_size: batch_size,
         ideal_batch_item_size: ideal_batch_item_size
       )
-      @client = nil
       yield @config if block_given?
       @config.send(:validate!)
     end
@@ -456,13 +455,13 @@ module LingoDotDev
       raise ValidationError, 'Text cannot be empty' if text.nil? || text.strip.empty?
 
       begin
-        response = http_client.post(
+        response = make_request(
           "#{config.api_url}/recognize",
           json: { text: text }
         )
 
         handle_response(response)
-        data = JSON.parse(response.body.to_s, symbolize_names: true)
+        data = JSON.parse(response.body, symbolize_names: true)
         data[:locale] || ''
       rescue StandardError => e
         raise APIError, "Request failed: #{e.message}"
@@ -478,11 +477,12 @@ module LingoDotDev
     #   # => { email: "user@example.com", id: "user-id" }
     def whoami
       begin
-        response = http_client.post("#{config.api_url}/whoami")
+        response = make_request("#{config.api_url}/whoami")
 
-        return nil unless response.status.success?
+        status_code = response.code.to_i
+        return nil unless status_code >= 200 && status_code < 300
 
-        data = JSON.parse(response.body.to_s, symbolize_names: true)
+        data = JSON.parse(response.body, symbolize_names: true)
         return nil unless data[:email]
 
         { email: data[:email], id: data[:id] }
@@ -603,85 +603,19 @@ module LingoDotDev
 
     private
 
-    def http_client
-      @client ||= NetHTTPAdapter.new(config.api_key)
-    end
+    def make_request(url, json: nil)
+      uri = URI(url)
+      http = Net::HTTP.new(uri.host, uri.port)
+      http.use_ssl = true
+      http.read_timeout = 60
+      http.open_timeout = 60
 
-    # Adapter class to use Net::HTTP instead of HTTP gem
-    # This provides better control over SSL context and avoids CRL verification issues
-    class NetHTTPAdapter
-      def initialize(api_key)
-        @api_key = api_key
-      end
+      request = Net::HTTP::Post.new(uri.path)
+      request['Authorization'] = "Bearer #{config.api_key}"
+      request['Content-Type'] = 'application/json; charset=utf-8'
+      request.body = JSON.generate(json) if json
 
-      def post(url, json: nil)
-        uri = URI(url)
-        http = Net::HTTP.new(uri.host, uri.port)
-        http.use_ssl = true
-        http.read_timeout = 60
-        http.open_timeout = 60
-
-        request = Net::HTTP::Post.new(uri.path)
-        request['Authorization'] = "Bearer #{@api_key}"
-        request['Content-Type'] = 'application/json; charset=utf-8'
-        request.body = JSON.generate(json) if json
-
-        response = http.request(request)
-
-        # Wrap response to be compatible with HTTP gem interface
-        ResponseWrapper.new(response)
-      end
-    end
-
-    # Wrapper to make Net::HTTP response compatible with HTTP gem interface
-    class ResponseWrapper
-      def initialize(response)
-        @response = response
-      end
-
-      def status
-        StatusWrapper.new(@response.code.to_i)
-      end
-
-      def body
-        BodyWrapper.new(@response.body)
-      end
-
-      def reason
-        @response.message
-      end
-    end
-
-    class StatusWrapper
-      def initialize(code)
-        @code = code
-      end
-
-      def code
-        @code
-      end
-
-      def success?
-        @code >= 200 && @code < 300
-      end
-
-      def server_error?
-        @code >= 500
-      end
-
-      def to_s
-        @code.to_s
-      end
-    end
-
-    class BodyWrapper
-      def initialize(body)
-        @body = body
-      end
-
-      def to_s
-        @body
-      end
+      http.request(request)
     end
 
     def localize_raw(payload, target_locale:, source_locale: nil, fast: nil, reference: nil, concurrent: false, &progress_callback)
@@ -747,14 +681,14 @@ module LingoDotDev
       end
 
       begin
-        response = http_client.post(
+        response = make_request(
           "#{config.api_url}/i18n",
           json: request_body
         )
 
         handle_response(response)
 
-        data = JSON.parse(response.body.to_s, symbolize_names: true)
+        data = JSON.parse(response.body, symbolize_names: true)
 
         if !data[:data] && data[:error]
           raise APIError, data[:error]
@@ -804,16 +738,17 @@ module LingoDotDev
     end
 
     def handle_response(response)
-      return if response.status.success?
+      status_code = response.code.to_i
+      return if status_code >= 200 && status_code < 300
 
-      if response.status.server_error?
-        raise ServerError, "Server error (#{response.status}): #{response.reason}. #{response.body}. This may be due to temporary service issues."
-      elsif response.status.code == 400
-        raise ValidationError, "Invalid request (#{response.status}): #{response.reason}"
-      elsif response.status.code == 401
-        raise AuthenticationError, "Authentication failed (#{response.status}): #{response.reason}"
+      if status_code >= 500
+        raise ServerError, "Server error (#{status_code}): #{response.message}. #{response.body}. This may be due to temporary service issues."
+      elsif status_code == 400
+        raise ValidationError, "Invalid request (#{status_code}): #{response.message}"
+      elsif status_code == 401
+        raise AuthenticationError, "Authentication failed (#{status_code}): #{response.message}"
       else
-        raise APIError, response.body.to_s
+        raise APIError, response.body
       end
     end
   end

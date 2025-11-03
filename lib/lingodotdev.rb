@@ -90,21 +90,6 @@ module LingoDotDev
       @config.send(:validate!)
     end
 
-    def self.open(api_key:, **options)
-      engine = new(api_key: api_key, **options)
-      return engine unless block_given?
-
-      begin
-        yield engine
-      ensure
-        engine.close
-      end
-    end
-
-    def close
-      @client = nil
-    end
-
     def localize_text(text, target_locale:, source_locale: nil, fast: nil, reference: nil, on_progress: nil, concurrent: false, &block)
       raise ValidationError, 'Target locale is required' if target_locale.nil? || target_locale.empty?
       raise ValidationError, 'Text cannot be nil' if text.nil?
@@ -272,16 +257,41 @@ module LingoDotDev
     end
 
     def self.quick_translate(content, api_key:, target_locale:, source_locale: nil, fast: true, api_url: 'https://engine.lingo.dev')
-      open(api_key: api_key, api_url: api_url) do |engine|
-        case content
-        when String
-          engine.localize_text(
-            content,
-            target_locale: target_locale,
-            source_locale: source_locale,
-            fast: fast
-          )
-        when Hash
+      engine = new(api_key: api_key, api_url: api_url)
+      case content
+      when String
+        engine.localize_text(
+          content,
+          target_locale: target_locale,
+          source_locale: source_locale,
+          fast: fast
+        )
+      when Hash
+        engine.localize_object(
+          content,
+          target_locale: target_locale,
+          source_locale: source_locale,
+          fast: fast,
+          concurrent: true
+        )
+      else
+        raise ValidationError, 'Content must be a String or Hash'
+      end
+    end
+
+    def self.quick_batch_translate(content, api_key:, target_locales:, source_locale: nil, fast: true, api_url: 'https://engine.lingo.dev')
+      engine = new(api_key: api_key, api_url: api_url)
+      case content
+      when String
+        engine.batch_localize_text(
+          content,
+          target_locales: target_locales,
+          source_locale: source_locale,
+          fast: fast,
+          concurrent: true
+        )
+      when Hash
+        target_locales.map do |target_locale|
           engine.localize_object(
             content,
             target_locale: target_locale,
@@ -289,36 +299,9 @@ module LingoDotDev
             fast: fast,
             concurrent: true
           )
-        else
-          raise ValidationError, 'Content must be a String or Hash'
         end
-      end
-    end
-
-    def self.quick_batch_translate(content, api_key:, target_locales:, source_locale: nil, fast: true, api_url: 'https://engine.lingo.dev')
-      open(api_key: api_key, api_url: api_url) do |engine|
-        case content
-        when String
-          engine.batch_localize_text(
-            content,
-            target_locales: target_locales,
-            source_locale: source_locale,
-            fast: fast,
-            concurrent: true
-          )
-        when Hash
-          target_locales.map do |target_locale|
-            engine.localize_object(
-              content,
-              target_locale: target_locale,
-              source_locale: source_locale,
-              fast: fast,
-              concurrent: true
-            )
-          end
-        else
-          raise ValidationError, 'Content must be a String or Hash'
-        end
+      else
+        raise ValidationError, 'Content must be a String or Hash'
       end
     end
 

@@ -44,18 +44,6 @@ engine = LingoDotDev::Engine.new(api_key: 'your-api-key')
 # Localize text
 result = engine.localize_text('Hello world', target_locale: 'es')
 puts result # => "Hola mundo"
-
-# Clean up when done
-engine.close
-```
-
-For automatic resource management, use the block form:
-
-```ruby
-LingoDotDev::Engine.open(api_key: 'your-api-key') do |engine|
-  result = engine.localize_text('Hello world', target_locale: 'es')
-  puts result
-end
 ```
 
 ## Usage
@@ -354,18 +342,7 @@ Returns information about the authenticated user.
 
 - **Returns:** Hash with `:email` and `:id` keys, or `nil` if authentication fails
 
-#### `close`
-
-Closes the engine and cleans up resources.
-
 ### Class methods
-
-#### `Engine.open(api_key:, **options, &block)`
-
-Creates an engine instance with automatic resource cleanup.
-
-- **Parameters:** Same as `Engine.new`
-- **Returns:** Engine instance (or yields to block and returns block result)
 
 #### `Engine.quick_translate(content, api_key:, target_locale:, source_locale: nil, fast: true, api_url: 'https://engine.lingo.dev')`
 

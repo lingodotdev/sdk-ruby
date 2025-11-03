@@ -34,30 +34,6 @@ RSpec.describe LingoDotDev::Engine do
     end
   end
 
-  describe '.open' do
-    it 'returns an engine without a block' do
-      engine = described_class.open(api_key: api_key)
-      expect(engine).to be_a(described_class)
-    end
-
-    it 'yields engine to block and closes after' do
-      result = nil
-      described_class.open(api_key: api_key) do |engine|
-        expect(engine).to be_a(described_class)
-        result = engine
-      end
-      expect(result.instance_variable_get(:@client)).to be_nil
-    end
-  end
-
-  describe '#close' do
-    it 'clears the http client' do
-      engine = described_class.new(api_key: api_key)
-      engine.close
-      expect(engine.instance_variable_get(:@client)).to be_nil
-    end
-  end
-
   describe '#localize_text' do
     it 'localizes text to target locale' do
       engine = described_class.new(api_key: api_key)

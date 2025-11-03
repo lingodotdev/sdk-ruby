@@ -30,7 +30,6 @@ Gem::Specification.new do |spec|
   spec.executables = spec.files.grep(%r{\Aexe/}) { |f| File.basename(f) }
   spec.require_paths = ["lib"]
 
-  spec.add_dependency "http", "~> 5.0"
   spec.add_dependency "json", "~> 2.0"
 
   spec.add_development_dependency "rspec", "~> 3.13"

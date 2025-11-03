@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require_relative "ruby/version"
-require 'http'
 require 'net/http'
 require 'uri'
 require 'json'
@@ -251,7 +250,7 @@ module LingoDotDev
         handle_response(response)
         data = JSON.parse(response.body.to_s, symbolize_names: true)
         data[:locale] || ''
-      rescue HTTP::Error => e
+      rescue StandardError => e
         raise APIError, "Request failed: #{e.message}"
       end
     end
@@ -266,7 +265,7 @@ module LingoDotDev
         return nil unless data[:email]
 
         { email: data[:email], id: data[:id] }
-      rescue HTTP::Error => e
+      rescue StandardError => e
         raise APIError, "Request failed: #{e.message}" if e.message.include?('Server error')
         nil
       end
@@ -483,7 +482,7 @@ module LingoDotDev
         end
 
         data[:data] || {}
-      rescue HTTP::Error => e
+      rescue StandardError => e
         raise APIError, "Request failed: #{e.message}"
       end
     end

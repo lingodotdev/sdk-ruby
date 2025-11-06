@@ -6,6 +6,7 @@ require 'uri'
 require 'json'
 require 'securerandom'
 require 'openssl'
+require 'nokogiri'
 
 # Configure SSL context globally at module load time to work around CRL verification issues
 # This is a production-safe workaround for OpenSSL 3.6+ that disables CRL checking
@@ -321,6 +322,181 @@ module LingoDotDev
       end
 
       response[:chat] || []
+    end
+
+    # Localizes an HTML document while preserving structure and formatting.
+    #
+    # Handles both text content and localizable attributes (alt, title, placeholder, meta content).
+    #
+    # @param html [String] the HTML document string to be localized
+    # @param target_locale [String] the target locale code (e.g., 'es', 'fr', 'ja')
+    # @param source_locale [String, nil] the source locale code (optional, auto-detected if not provided)
+    # @param fast [Boolean, nil] enable fast mode for quicker results (optional)
+    # @param reference [Hash, nil] additional context for translation (optional)
+    # @param on_progress [Proc, nil] callback for progress updates (optional)
+    # @param concurrent [Boolean] enable concurrent processing (default: false)
+    #
+    # @yield [progress] optional block for progress tracking
+    # @yieldparam progress [Integer] completion percentage (0-100)
+    #
+    # @return [String] the localized HTML document as a string, with updated lang attribute
+    #
+    # @raise [ValidationError] if target_locale is missing or html is nil
+    # @raise [APIError] if the API request fails
+    #
+    # @example Basic usage
+    #   html = '<html><head><title>Hello</title></head><body><p>World</p></body></html>'
+    #   result = engine.localize_html(html, target_locale: 'es')
+    #   # => "<html lang=\"es\">..."
+    def localize_html(html, target_locale:, source_locale: nil, fast: nil, reference: nil, on_progress: nil, concurrent: false, &block)
+      raise ValidationError, 'Target locale is required' if target_locale.nil? || target_locale.empty?
+      raise ValidationError, 'HTML cannot be nil' if html.nil?
+
+      callback = block || on_progress
+
+      doc = Nokogiri::HTML::Document.parse(html)
+
+      localizable_attributes = {
+        'meta' => ['content'],
+        'img' => ['alt'],
+        'input' => ['placeholder'],
+        'a' => ['title']
+      }
+
+      unlocalizable_tags = ['script', 'style']
+
+      extracted_content = {}
+
+      get_path = lambda do |node, attribute = nil|
+        indices = []
+        current = node
+        root_parent = nil
+
+        while current
+          parent = current.parent
+          break unless parent
+
+          if parent == doc.root
+            root_parent = current.name.downcase if current.element?
+            break
+          end
+
+          siblings = parent.children.select do |n|
+            (n.element? || (n.text? && n.text.strip != ''))
+          end
+
+          index = siblings.index(current)
+          if index
+            indices.unshift(index)
+          end
+
+          current = parent
+        end
+
+        base_path = root_parent ? "#{root_parent}/#{indices.join('/')}" : indices.join('/')
+        attribute ? "#{base_path}##{attribute}" : base_path
+      end
+
+      process_node = lambda do |node|
+        parent = node.parent
+        while parent && !parent.is_a?(Nokogiri::XML::Document)
+          if parent.element? && unlocalizable_tags.include?(parent.name.downcase)
+            return
+          end
+          parent = parent.parent
+        end
+
+        if node.text?
+          text = node.text.strip
+          if text != ''
+            extracted_content[get_path.call(node)] = text
+          end
+        elsif node.element?
+          element = node
+          tag_name = element.name.downcase
+          attributes = localizable_attributes[tag_name] || []
+          attributes.each do |attr|
+            value = element[attr]
+            if value && value.strip != ''
+              extracted_content[get_path.call(element, attr)] = value
+            end
+          end
+
+          element.children.each do |child|
+            process_node.call(child)
+          end
+        end
+      end
+
+      head = doc.at_css('head')
+      if head
+        head.children.select do |n|
+          n.element? || (n.text? && n.text.strip != '')
+        end.each do |child|
+          process_node.call(child)
+        end
+      end
+
+      body = doc.at_css('body')
+      if body
+        body.children.select do |n|
+          n.element? || (n.text? && n.text.strip != '')
+        end.each do |child|
+          process_node.call(child)
+        end
+      end
+
+      localized_content = localize_raw(
+        extracted_content,
+        target_locale: target_locale,
+        source_locale: source_locale,
+        fast: fast,
+        reference: reference,
+        concurrent: concurrent
+      ) do |progress, chunk, processed_chunk|
+        callback&.call(progress)
+      end
+
+      doc.root['lang'] = target_locale if doc.root
+
+      localized_content.each do |path, value|
+        node_path, attribute = path.split('#')
+        parts = node_path.split('/')
+        root_tag = parts[0]
+        indices = parts[1..-1]
+
+        parent = root_tag == 'head' ? doc.at_css('head') : doc.at_css('body')
+        next unless parent
+        current = parent
+
+        indices.each do |index_str|
+          index = index_str.to_i
+          siblings = parent.children.select do |n|
+            (n.element? || (n.text? && n.text.strip != ''))
+          end
+
+          current = siblings[index]
+          break unless current
+
+          if current.element?
+            parent = current
+          end
+        end
+
+        if current
+          if attribute
+            if current.element?
+              current[attribute] = value
+            end
+          else
+            if current.text?
+              current.content = value
+            end
+          end
+        end
+      end
+
+      doc.to_html
     end
 
     # Localizes text to multiple target locales.

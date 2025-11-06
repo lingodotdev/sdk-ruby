@@ -3,6 +3,7 @@ PATH
   specs:
     lingodotdev (0.1.0)
       json (~> 2.0)
+      nokogiri (~> 1.0)
 
 GEM
   remote: https://rubygems.org/
@@ -17,12 +18,15 @@ GEM
       rdoc (>= 4.0.0)
       reline (>= 0.4.2)
     json (2.15.2)
+    nokogiri (1.18.10-arm64-darwin)
+      racc (~> 1.4)
     pp (0.6.3)
       prettyprint
     prettyprint (0.2.0)
     psych (5.2.6)
       date
       stringio
+    racc (1.8.1)
     rake (13.3.1)
     rdoc (6.15.1)
       erb
@@ -47,24 +51,14 @@ GEM
     tsort (0.2.0)
 
 PLATFORMS
-  aarch64-linux-gnu
-  aarch64-linux-musl
-  arm-linux-gnu
-  arm-linux-musl
   arm64-darwin
-  ruby
-  x86-linux-gnu
-  x86-linux-musl
-  x86_64-darwin
-  x86_64-linux-gnu
-  x86_64-linux-musl
 
 DEPENDENCIES
   dotenv (~> 3.0)
   irb
+  lingodotdev!
   rake (~> 13.0)
   rspec (~> 3.13)
-  lingodotdev!
 
 BUNDLED WITH
    2.7.1

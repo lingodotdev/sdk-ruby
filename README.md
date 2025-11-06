@@ -116,6 +116,38 @@ result = engine.localize_chat(chat, target_locale: 'ja')
 # ]
 ```
 
+### HTML document localization
+
+Localize HTML documents while preserving structure and formatting:
+
+```ruby
+html = <<~HTML
+  <html>
+    <head>
+      <title>Welcome</title>
+      <meta name="description" content="Page description">
+    </head>
+    <body>
+      <h1>Hello World</h1>
+      <p>This is a paragraph with <a href="/test" title="Link title">a link</a>.</p>
+      <img src="/image.jpg" alt="Test image">
+      <input type="text" placeholder="Enter text">
+    </body>
+  </html>
+HTML
+
+result = engine.localize_html(html, target_locale: 'es')
+# => HTML with localized text content and attributes, lang="es" attribute updated
+```
+
+The method handles:
+
+- Text content in all elements
+- Localizable attributes: `meta` content, `img` alt, `input` placeholder, `a` title
+- Preserves HTML structure and formatting
+- Ignores content inside `script` and `style` tags
+- Updates the `lang` attribute on the `html` element
+
 ### Batch localization to multiple locales
 
 Localize the same content to multiple target locales:
@@ -308,6 +340,21 @@ Localizes chat messages. Each message must have `:name` and `:text` keys.
 - **Parameters:** Same as `localize_text`, with `chat` (Array) instead of `text`
 - **Returns:** Array of localized chat messages
 
+#### `localize_html(html, target_locale:, source_locale: nil, fast: nil, reference: nil, on_progress: nil, concurrent: false, &block)`
+
+Localizes an HTML document while preserving structure and formatting. Handles both text content and localizable attributes (alt, title, placeholder, meta content).
+
+- **Parameters:**
+  - `html` (String): HTML document string to localize
+  - `target_locale` (String): Target locale code (e.g., 'es', 'fr', 'ja')
+  - `source_locale` (String, optional): Source locale code
+  - `fast` (Boolean, optional): Enable fast mode
+  - `reference` (Hash, optional): Additional context for translation
+  - `on_progress` (Proc, optional): Progress callback
+  - `concurrent` (Boolean): Enable concurrent processing
+  - `&block`: Alternative progress callback
+- **Returns:** Localized HTML document string with updated `lang` attribute
+
 #### `batch_localize_text(text, target_locales:, source_locale: nil, fast: nil, reference: nil, concurrent: false)`
 
 Localizes text to multiple target locales.
@@ -426,8 +473,8 @@ bundle exec rake install
 
 ## Dependencies
 
-- `http` ~> 5.0
 - `json` ~> 2.0
+- `nokogiri` ~> 1.0
 
 ## License
 

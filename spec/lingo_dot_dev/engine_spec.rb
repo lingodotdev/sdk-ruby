@@ -280,6 +280,147 @@ RSpec.describe LingoDotDev::Engine do
     end
   end
 
+  describe '#localize_html' do
+    it 'correctly extracts, localizes, and reconstructs HTML content' do
+      input_html = <<~HTML.strip
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <title>Test Page</title>
+            <meta name="description" content="Page description">
+          </head>
+          <body>
+            standalone text
+            <div>
+              <h1>Hello World</h1>
+              <p>
+                This is a paragraph with
+                <a href="/test" title="Link title">a link</a>
+                and an
+                <img src="/test.jpg" alt="Test image">
+                and some <b>bold <i>and italic</i></b> text.
+              </p>
+              <script>
+                const doNotTranslate = "this text should be ignored";
+              </script>
+              <input type="text" placeholder="Enter text">
+            </div>
+          </body>
+        </html>
+      HTML
+
+      engine = described_class.new(api_key: api_key)
+      extracted_content = nil
+      call_params = nil
+
+      allow(engine).to receive(:localize_raw) do |content, params, &block|
+        extracted_content = content
+        call_params = params
+        localized = {}
+        content.each do |key, value|
+          localized[key] = "ES:#{value}"
+        end
+        localized
+      end
+
+      result = engine.localize_html(input_html, target_locale: 'es', source_locale: 'en')
+
+      expect(call_params[:target_locale]).to eq('es')
+      expect(call_params[:source_locale]).to eq('en')
+      expect(extracted_content).to include(
+        'head/0/0' => 'Test Page',
+        'head/1#content' => 'Page description',
+        'body/0' => 'standalone text',
+        'body/1/0/0' => 'Hello World',
+        'body/1/1/0' => 'This is a paragraph with',
+        'body/1/1/1#title' => 'Link title',
+        'body/1/1/1/0' => 'a link',
+        'body/1/1/2' => 'and an',
+        'body/1/1/3#alt' => 'Test image',
+        'body/1/1/4' => 'and some',
+        'body/1/1/5/0' => 'bold',
+        'body/1/1/5/1/0' => 'and italic',
+        'body/1/1/6' => 'text.',
+        'body/1/3#placeholder' => 'Enter text'
+      )
+
+      expect(result).to include('lang="es"')
+      expect(result).to include('<title>ES:Test Page</title>')
+      expect(result).to include('content="ES:Page description"')
+      expect(result).to include('>ES:standalone text<')
+      expect(result).to include('<h1>ES:Hello World</h1>')
+      expect(result).to include('title="ES:Link title"')
+      expect(result).to include('alt="ES:Test image"')
+      expect(result).to include('placeholder="ES:Enter text"')
+      expect(result).to include('const doNotTranslate = "this text should be ignored"')
+    end
+
+    it 'localizes HTML with source locale' do
+      html = '<html><head><title>Hello</title></head><body><p>World</p></body></html>'
+      engine = described_class.new(api_key: api_key)
+      call_params = nil
+      allow(engine).to receive(:localize_raw) do |content, params, &block|
+        call_params = params
+        { 'head/0/0' => 'Hola', 'body/0/0' => 'Mundo' }
+      end
+
+      result = engine.localize_html(html, target_locale: 'es', source_locale: 'en')
+
+      expect(call_params[:source_locale]).to eq('en')
+      expect(call_params[:target_locale]).to eq('es')
+      expect(result).to include('lang="es"')
+    end
+
+    it 'localizes HTML with fast flag' do
+      html = '<html><head><title>Hello</title></head><body><p>World</p></body></html>'
+      engine = described_class.new(api_key: api_key)
+      call_params = nil
+      allow(engine).to receive(:localize_raw) do |content, params, &block|
+        call_params = params
+        { 'head/0/0' => 'Hola', 'body/0/0' => 'Mundo' }
+      end
+
+      result = engine.localize_html(html, target_locale: 'es', fast: true)
+
+      expect(call_params[:fast]).to eq(true)
+    end
+
+    it 'supports progress callback for HTML' do
+      html = '<html><head><title>Hello</title></head><body><p>World</p></body></html>'
+      engine = described_class.new(api_key: api_key)
+      progress_updates = []
+      allow(engine).to receive(:localize_raw) do |content, params, &block|
+        block&.call(100, {}, {})
+        { 'head/0/0' => 'Hola', 'body/0/0' => 'Mundo' }
+      end
+
+      result = engine.localize_html(html, target_locale: 'es') { |progress| progress_updates << progress }
+
+      expect(progress_updates).not_to be_empty
+    end
+
+    it 'raises ValidationError when target_locale is nil' do
+      engine = described_class.new(api_key: api_key)
+      expect {
+        engine.localize_html('<html></html>', target_locale: nil)
+      }.to raise_error(LingoDotDev::ValidationError, /Target locale is required/)
+    end
+
+    it 'raises ValidationError when target_locale is empty' do
+      engine = described_class.new(api_key: api_key)
+      expect {
+        engine.localize_html('<html></html>', target_locale: '')
+      }.to raise_error(LingoDotDev::ValidationError, /Target locale is required/)
+    end
+
+    it 'raises ValidationError when html is nil' do
+      engine = described_class.new(api_key: api_key)
+      expect {
+        engine.localize_html(nil, target_locale: 'es')
+      }.to raise_error(LingoDotDev::ValidationError, /HTML cannot be nil/)
+    end
+  end
+
   describe '#batch_localize_text' do
     it 'batch localizes text to multiple locales' do
       engine = described_class.new(api_key: api_key)

@@ -132,7 +132,7 @@ RSpec.describe LingoDotDev::Engine do
         target_locale: target_locale
       )
       expect(result).to be_a(Hash)
-      expect(result.keys).to include(:greeting, :farewell)
+      expect(result.keys).to include('greeting', 'farewell')
     end
 
     it 'localizes object with source locale' do

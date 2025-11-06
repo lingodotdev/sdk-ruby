@@ -223,7 +223,8 @@ module LingoDotDev
         callback&.call(progress)
       end
 
-      response[:text] || ''
+      raise APIError, 'API did not return localized text' unless response.key?('text')
+      response['text']
     end
 
     # Localizes all string values in a Hash.
@@ -255,7 +256,7 @@ module LingoDotDev
 
       callback = block || on_progress
 
-      localize_raw(
+      response = localize_raw(
         obj,
         target_locale: target_locale,
         source_locale: source_locale,
@@ -264,6 +265,9 @@ module LingoDotDev
         concurrent: concurrent,
         &callback
       )
+
+      raise APIError, 'API returned empty localization response' if response.empty?
+      response
     end
 
     # Localizes chat messages while preserving structure.
@@ -321,7 +325,8 @@ module LingoDotDev
         callback&.call(progress)
       end
 
-      response[:chat] || []
+      raise APIError, 'API did not return localized chat' unless response.key?('chat')
+      response['chat']
     end
 
     # Localizes an HTML document while preserving structure and formatting.
@@ -870,7 +875,8 @@ module LingoDotDev
           raise APIError, data[:error]
         end
 
-        data[:data] || {}
+        # Normalize all keys to strings for consistent access throughout the SDK
+        (data[:data] || {}).transform_keys(&:to_s)
       rescue StandardError => e
         raise APIError, "Request failed: #{e.message}"
       end

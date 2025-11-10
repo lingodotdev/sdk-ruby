@@ -1,0 +1,63 @@
+name: Publish Gem
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.2'
+
+      - name: Determine versions and decide if publish is needed
+        id: versions
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          # Read gem name from gemspec
+          gem_name=$(ruby -e "require 'rubygems'; spec = Gem::Specification.load('sdk-ruby.gemspec'); puts spec.name")
+
+          # Read local version from the version file
+          local_version=$(ruby -e "require_relative 'lib/lingodotdev/version'; puts LingoDotDev::VERSION")
+
+          # Fetch latest published version from RubyGems (empty if not published yet)
+          remote_json=$(curl -sS "https://rubygems.org/api/v1/gems/$gem_name.json" || true)
+          remote_version=$(ruby -rjson -e 'puts JSON.parse(STDIN.read)["version"] rescue ""' <<< "$remote_json")
+
+          echo "gem_name=$gem_name" >> "$GITHUB_OUTPUT"
+          echo "local_version=$local_version" >> "$GITHUB_OUTPUT"
+          echo "remote_version=$remote_version" >> "$GITHUB_OUTPUT"
+
+          if [[ "$local_version" == "$remote_version" ]]; then
+            echo "should_publish=false" >> "$GITHUB_OUTPUT"
+            echo "Version $local_version already on RubyGems. Skipping publish."
+          else
+            echo "should_publish=true" >> "$GITHUB_OUTPUT"
+            echo "Will publish $gem_name $local_version to RubyGems."
+          fi
+
+      - name: Build gem
+        if: steps.versions.outputs.should_publish == 'true'
+        run: |
+          gem build sdk-ruby.gemspec
+
+      - name: Publish to RubyGems
+        if: steps.versions.outputs.should_publish == 'true'
+        env:
+          GEM_HOST_API_KEY: ${{ secrets.RUBYGEMS_API_KEY }}
+        run: |
+          gem push "${{ steps.versions.outputs.gem_name }}-${{ steps.versions.outputs.local_version }}.gem"
+

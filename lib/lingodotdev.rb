@@ -817,6 +817,7 @@ module LingoDotDev
     end
 
     def localize_raw(payload, target_locale:, source_locale:, fast: nil, reference: nil, concurrent: false, &progress_callback)
+      raise ValidationError, 'Source locale is required' if source_locale.nil? || (source_locale.is_a?(String) && source_locale.empty?)
       chunked_payload = extract_payload_chunks(payload)
 
       processed_chunks = if concurrent && !progress_callback

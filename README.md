@@ -39,10 +39,10 @@ gem install lingodotdev
 require 'lingodotdev'
 
 # Create an engine instance
-engine = LingoDotDev::Engine.new(api_key: 'your-api-key')
+engine = LingoDotDev::Engine.new(api_key: 'your-api-key', engine_id: 'your-engine-id')
 
 # Localize text
-result = engine.localize_text('Hello world', target_locale: 'es')
+result = engine.localize_text('Hello world', target_locale: 'es', source_locale: 'en')
 puts result # => "Hola mundo"
 ```
 
@@ -53,26 +53,20 @@ puts result # => "Hola mundo"
 Localize a simple string to a target locale:
 
 ```ruby
-engine = LingoDotDev::Engine.new(api_key: 'your-api-key')
+engine = LingoDotDev::Engine.new(api_key: 'your-api-key', engine_id: 'your-engine-id')
 
 result = engine.localize_text(
   'Hello world',
-  target_locale: 'es'
-)
-# => "Hola mundo"
-
-# With source locale specified
-result = engine.localize_text(
-  'Hello world',
-  target_locale: 'fr',
+  target_locale: 'es',
   source_locale: 'en'
 )
-# => "Bonjour le monde"
+# => "Hola mundo"
 
 # Fast mode for quicker results
 result = engine.localize_text(
   'Hello world',
   target_locale: 'de',
+  source_locale: 'en',
   fast: true
 )
 # => "Hallo Welt"
@@ -89,7 +83,7 @@ data = {
   message: 'Welcome to our app'
 }
 
-result = engine.localize_object(data, target_locale: 'es')
+result = engine.localize_object(data, target_locale: 'es', source_locale: 'en')
 # => {
 #   greeting: "Hola",
 #   farewell: "Adiós",
@@ -108,7 +102,7 @@ chat = [
   { name: 'user', text: 'I need some information.' }
 ]
 
-result = engine.localize_chat(chat, target_locale: 'ja')
+result = engine.localize_chat(chat, target_locale: 'ja', source_locale: 'en')
 # => [
 #   { name: 'user', text: 'こんにちは！' },
 #   { name: 'assistant', text: 'こんにちは！どのようにお手伝いできますか？' },
@@ -136,7 +130,7 @@ html = <<~HTML
   </html>
 HTML
 
-result = engine.localize_html(html, target_locale: 'es')
+result = engine.localize_html(html, target_locale: 'es', source_locale: 'en')
 # => HTML with localized text content and attributes, lang="es" attribute updated
 ```
 
@@ -156,7 +150,8 @@ Localize the same content to multiple target locales:
 # Batch localize text
 results = engine.batch_localize_text(
   'Hello world',
-  target_locales: ['es', 'fr', 'de']
+  target_locales: ['es', 'fr', 'de'],
+  source_locale: 'en'
 )
 # => ["Hola mundo", "Bonjour le monde", "Hallo Welt"]
 
@@ -164,6 +159,7 @@ results = engine.batch_localize_text(
 results = engine.batch_localize_text(
   'Hello world',
   target_locales: ['es', 'fr', 'de', 'ja'],
+  source_locale: 'en',
   concurrent: true
 )
 ```
@@ -182,6 +178,7 @@ objects = [
 results = engine.batch_localize_objects(
   objects,
   target_locale: 'es',
+  source_locale: 'en',
   concurrent: true
 )
 # => [
@@ -198,9 +195,6 @@ Automatically detect the locale of a given text:
 ```ruby
 locale = engine.recognize_locale('Bonjour le monde')
 # => "fr"
-
-locale = engine.recognize_locale('こんにちは世界')
-# => "ja"
 ```
 
 ### Progress tracking
@@ -209,7 +203,7 @@ Monitor localization progress with callbacks:
 
 ```ruby
 # Using a block
-result = engine.localize_text('Hello world', target_locale: 'es') do |progress|
+result = engine.localize_text('Hello world', target_locale: 'es', source_locale: 'en') do |progress|
   puts "Progress: #{progress}%"
 end
 
@@ -218,6 +212,7 @@ callback = proc { |progress| puts "Progress: #{progress}%" }
 result = engine.localize_text(
   'Hello world',
   target_locale: 'es',
+  source_locale: 'en',
   on_progress: callback
 )
 ```
@@ -236,6 +231,7 @@ reference = {
 result = engine.localize_text(
   'Hello',
   target_locale: 'ja',
+  source_locale: 'en',
   reference: reference
 )
 ```
@@ -249,21 +245,27 @@ For one-off translations without managing engine instances:
 result = LingoDotDev::Engine.quick_translate(
   'Hello world',
   api_key: 'your-api-key',
-  target_locale: 'es'
+  engine_id: 'your-engine-id',
+  target_locale: 'es',
+  source_locale: 'en'
 )
 
 # Quick translate a hash
 result = LingoDotDev::Engine.quick_translate(
   { greeting: 'Hello', farewell: 'Goodbye' },
   api_key: 'your-api-key',
-  target_locale: 'fr'
+  engine_id: 'your-engine-id',
+  target_locale: 'fr',
+  source_locale: 'en'
 )
 
 # Quick batch translate to multiple locales
 results = LingoDotDev::Engine.quick_batch_translate(
   'Hello',
   api_key: 'your-api-key',
-  target_locales: ['es', 'fr', 'de']
+  engine_id: 'your-engine-id',
+  target_locales: ['es', 'fr', 'de'],
+  source_locale: 'en'
 )
 ```
 
@@ -283,7 +285,8 @@ The SDK can be configured when creating an engine instance:
 ```ruby
 engine = LingoDotDev::Engine.new(
   api_key: 'your-api-key',          # Required: Your Lingo.dev API key
-  api_url: 'https://engine.lingo.dev', # Optional: API endpoint URL
+  engine_id: 'your-engine-id',      # Required: Your engine ID
+  api_url: 'https://api.lingo.dev', # Optional: API endpoint URL
   batch_size: 25,                    # Optional: Max items per batch (1-250)
   ideal_batch_item_size: 250         # Optional: Target word count per batch (1-2500)
 )
@@ -292,7 +295,7 @@ engine = LingoDotDev::Engine.new(
 You can also configure using a block:
 
 ```ruby
-engine = LingoDotDev::Engine.new(api_key: 'your-api-key') do |config|
+engine = LingoDotDev::Engine.new(api_key: 'your-api-key', engine_id: 'your-engine-id') do |config|
   config.batch_size = 50
   config.ideal_batch_item_size = 500
 end
@@ -303,7 +306,8 @@ end
 | Option                  | Type    | Default                    | Description                               |
 | ----------------------- | ------- | -------------------------- | ----------------------------------------- |
 | `api_key`               | String  | Required                   | Your Lingo.dev API key                    |
-| `api_url`               | String  | `https://engine.lingo.dev` | API endpoint URL                          |
+| `engine_id`             | String  | Required                   | Your engine ID for localization processing|
+| `api_url`               | String  | `https://api.lingo.dev`    | API endpoint URL                          |
 | `batch_size`            | Integer | `25`                       | Maximum items per batch (1-250)           |
 | `ideal_batch_item_size` | Integer | `250`                      | Target word count per batch item (1-2500) |
 
@@ -311,14 +315,14 @@ end
 
 ### Instance methods
 
-#### `localize_text(text, target_locale:, source_locale: nil, fast: nil, reference: nil, on_progress: nil, concurrent: false, &block)`
+#### `localize_text(text, target_locale:, source_locale:, fast: nil, reference: nil, on_progress: nil, concurrent: false, &block)`
 
 Localizes a string to the target locale.
 
 - **Parameters:**
   - `text` (String): Text to localize
   - `target_locale` (String): Target locale code (e.g., 'es', 'fr', 'ja')
-  - `source_locale` (String, optional): Source locale code
+  - `source_locale` (String): Source locale code (e.g., 'en')
   - `fast` (Boolean, optional): Enable fast mode
   - `reference` (Hash, optional): Additional context for translation
   - `on_progress` (Proc, optional): Progress callback
@@ -326,28 +330,28 @@ Localizes a string to the target locale.
   - `&block`: Alternative progress callback
 - **Returns:** Localized string
 
-#### `localize_object(obj, target_locale:, source_locale: nil, fast: nil, reference: nil, on_progress: nil, concurrent: false, &block)`
+#### `localize_object(obj, target_locale:, source_locale:, fast: nil, reference: nil, on_progress: nil, concurrent: false, &block)`
 
 Localizes all string values in a Hash.
 
 - **Parameters:** Same as `localize_text`, with `obj` (Hash) instead of `text`
 - **Returns:** Localized Hash
 
-#### `localize_chat(chat, target_locale:, source_locale: nil, fast: nil, reference: nil, on_progress: nil, concurrent: false, &block)`
+#### `localize_chat(chat, target_locale:, source_locale:, fast: nil, reference: nil, on_progress: nil, concurrent: false, &block)`
 
 Localizes chat messages. Each message must have `:name` and `:text` keys.
 
 - **Parameters:** Same as `localize_text`, with `chat` (Array) instead of `text`
 - **Returns:** Array of localized chat messages
 
-#### `localize_html(html, target_locale:, source_locale: nil, fast: nil, reference: nil, on_progress: nil, concurrent: false, &block)`
+#### `localize_html(html, target_locale:, source_locale:, fast: nil, reference: nil, on_progress: nil, concurrent: false, &block)`
 
 Localizes an HTML document while preserving structure and formatting. Handles both text content and localizable attributes (alt, title, placeholder, meta content).
 
 - **Parameters:**
   - `html` (String): HTML document string to localize
   - `target_locale` (String): Target locale code (e.g., 'es', 'fr', 'ja')
-  - `source_locale` (String, optional): Source locale code
+  - `source_locale` (String): Source locale code (e.g., 'en')
   - `fast` (Boolean, optional): Enable fast mode
   - `reference` (Hash, optional): Additional context for translation
   - `on_progress` (Proc, optional): Progress callback
@@ -355,7 +359,7 @@ Localizes an HTML document while preserving structure and formatting. Handles bo
   - `&block`: Alternative progress callback
 - **Returns:** Localized HTML document string with updated `lang` attribute
 
-#### `batch_localize_text(text, target_locales:, source_locale: nil, fast: nil, reference: nil, concurrent: false)`
+#### `batch_localize_text(text, target_locales:, source_locale:, fast: nil, reference: nil, concurrent: false)`
 
 Localizes text to multiple target locales.
 
@@ -365,7 +369,7 @@ Localizes text to multiple target locales.
   - Other parameters same as `localize_text`
 - **Returns:** Array of localized strings
 
-#### `batch_localize_objects(objects, target_locale:, source_locale: nil, fast: nil, reference: nil, concurrent: false)`
+#### `batch_localize_objects(objects, target_locale:, source_locale:, fast: nil, reference: nil, concurrent: false)`
 
 Localizes multiple objects to the same target locale.
 
@@ -391,7 +395,7 @@ Returns information about the authenticated user.
 
 ### Class methods
 
-#### `Engine.quick_translate(content, api_key:, target_locale:, source_locale: nil, fast: true, api_url: 'https://engine.lingo.dev')`
+#### `Engine.quick_translate(content, api_key:, engine_id:, target_locale:, source_locale:, fast: true, api_url: 'https://api.lingo.dev')`
 
 One-off translation without managing engine lifecycle.
 
@@ -400,7 +404,7 @@ One-off translation without managing engine lifecycle.
   - Other parameters as in instance methods
 - **Returns:** Translated String or Hash
 
-#### `Engine.quick_batch_translate(content, api_key:, target_locales:, source_locale: nil, fast: true, api_url: 'https://engine.lingo.dev')`
+#### `Engine.quick_batch_translate(content, api_key:, engine_id:, target_locales:, source_locale:, fast: true, api_url: 'https://api.lingo.dev')`
 
 One-off batch translation to multiple locales.
 
@@ -416,8 +420,8 @@ The SDK defines custom exception classes for different error scenarios:
 
 ```ruby
 begin
-  engine = LingoDotDev::Engine.new(api_key: 'your-api-key')
-  result = engine.localize_text('Hello', target_locale: 'es')
+  engine = LingoDotDev::Engine.new(api_key: 'your-api-key', engine_id: 'your-engine-id')
+  result = engine.localize_text('Hello', target_locale: 'es', source_locale: 'en')
 rescue LingoDotDev::ValidationError => e
   # Invalid input or configuration
   puts "Validation error: #{e.message}"

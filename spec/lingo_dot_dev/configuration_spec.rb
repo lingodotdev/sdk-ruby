@@ -4,29 +4,31 @@ require 'spec_helper'
 
 RSpec.describe LingoDotDev::Configuration do
   describe 'initialization' do
-    it 'creates a configuration with valid api_key' do
-      config = described_class.new(api_key: 'test-key')
+    it 'creates a configuration with valid api_key and engine_id' do
+      config = described_class.new(api_key: 'test-key', engine_id: 'test-engine')
       expect(config.api_key).to eq('test-key')
+      expect(config.engine_id).to eq('test-engine')
     end
 
     it 'uses default api_url' do
-      config = described_class.new(api_key: 'test-key')
-      expect(config.api_url).to eq('https://engine.lingo.dev')
+      config = described_class.new(api_key: 'test-key', engine_id: 'test-engine')
+      expect(config.api_url).to eq('https://api.lingo.dev')
     end
 
     it 'uses default batch_size' do
-      config = described_class.new(api_key: 'test-key')
+      config = described_class.new(api_key: 'test-key', engine_id: 'test-engine')
       expect(config.batch_size).to eq(25)
     end
 
     it 'uses default ideal_batch_item_size' do
-      config = described_class.new(api_key: 'test-key')
+      config = described_class.new(api_key: 'test-key', engine_id: 'test-engine')
       expect(config.ideal_batch_item_size).to eq(250)
     end
 
     it 'allows customizing api_url' do
       config = described_class.new(
         api_key: 'test-key',
+        engine_id: 'test-engine',
         api_url: 'https://custom.example.com'
       )
       expect(config.api_url).to eq('https://custom.example.com')
@@ -35,6 +37,7 @@ RSpec.describe LingoDotDev::Configuration do
     it 'allows customizing batch_size' do
       config = described_class.new(
         api_key: 'test-key',
+        engine_id: 'test-engine',
         batch_size: 50
       )
       expect(config.batch_size).to eq(50)
@@ -43,6 +46,7 @@ RSpec.describe LingoDotDev::Configuration do
     it 'allows customizing ideal_batch_item_size' do
       config = described_class.new(
         api_key: 'test-key',
+        engine_id: 'test-engine',
         ideal_batch_item_size: 500
       )
       expect(config.ideal_batch_item_size).to eq(500)
@@ -52,20 +56,33 @@ RSpec.describe LingoDotDev::Configuration do
   describe 'validation' do
     it 'raises ValidationError when api_key is nil' do
       expect {
-        described_class.new(api_key: nil)
+        described_class.new(api_key: nil, engine_id: 'test-engine')
       }.to raise_error(LingoDotDev::ValidationError, /API key is required/)
     end
 
     it 'raises ValidationError when api_key is empty' do
       expect {
-        described_class.new(api_key: '')
+        described_class.new(api_key: '', engine_id: 'test-engine')
       }.to raise_error(LingoDotDev::ValidationError, /API key is required/)
+    end
+
+    it 'raises ValidationError when engine_id is nil' do
+      expect {
+        described_class.new(api_key: 'test-key', engine_id: nil)
+      }.to raise_error(LingoDotDev::ValidationError, /Engine ID is required/)
+    end
+
+    it 'raises ValidationError when engine_id is empty' do
+      expect {
+        described_class.new(api_key: 'test-key', engine_id: '')
+      }.to raise_error(LingoDotDev::ValidationError, /Engine ID is required/)
     end
 
     it 'raises ValidationError when api_url does not start with http/https' do
       expect {
         described_class.new(
           api_key: 'test-key',
+          engine_id: 'test-engine',
           api_url: 'ftp://example.com'
         )
       }.to raise_error(LingoDotDev::ValidationError, /valid HTTP\/HTTPS URL/)
@@ -75,6 +92,7 @@ RSpec.describe LingoDotDev::Configuration do
       expect {
         described_class.new(
           api_key: 'test-key',
+          engine_id: 'test-engine',
           batch_size: 0
         )
       }.to raise_error(LingoDotDev::ValidationError, /between 1 and 250/)
@@ -84,6 +102,7 @@ RSpec.describe LingoDotDev::Configuration do
       expect {
         described_class.new(
           api_key: 'test-key',
+          engine_id: 'test-engine',
           batch_size: 251
         )
       }.to raise_error(LingoDotDev::ValidationError, /between 1 and 250/)
@@ -93,6 +112,7 @@ RSpec.describe LingoDotDev::Configuration do
       expect {
         described_class.new(
           api_key: 'test-key',
+          engine_id: 'test-engine',
           ideal_batch_item_size: 0
         )
       }.to raise_error(LingoDotDev::ValidationError, /between 1 and 2500/)
@@ -102,6 +122,7 @@ RSpec.describe LingoDotDev::Configuration do
       expect {
         described_class.new(
           api_key: 'test-key',
+          engine_id: 'test-engine',
           ideal_batch_item_size: 2501
         )
       }.to raise_error(LingoDotDev::ValidationError, /between 1 and 2500/)
@@ -110,6 +131,7 @@ RSpec.describe LingoDotDev::Configuration do
     it 'accepts valid batch_size and ideal_batch_item_size values' do
       config = described_class.new(
         api_key: 'test-key',
+        engine_id: 'test-engine',
         batch_size: 100,
         ideal_batch_item_size: 1000
       )
@@ -120,25 +142,31 @@ RSpec.describe LingoDotDev::Configuration do
 
   describe 'attribute accessors' do
     it 'allows setting api_key after initialization' do
-      config = described_class.new(api_key: 'initial-key')
+      config = described_class.new(api_key: 'initial-key', engine_id: 'test-engine')
       config.api_key = 'new-key'
       expect(config.api_key).to eq('new-key')
     end
 
     it 'allows setting api_url after initialization' do
-      config = described_class.new(api_key: 'test-key')
+      config = described_class.new(api_key: 'test-key', engine_id: 'test-engine')
       config.api_url = 'https://new-url.com'
       expect(config.api_url).to eq('https://new-url.com')
     end
 
+    it 'allows setting engine_id after initialization' do
+      config = described_class.new(api_key: 'test-key', engine_id: 'test-engine')
+      config.engine_id = 'new-engine'
+      expect(config.engine_id).to eq('new-engine')
+    end
+
     it 'allows setting batch_size after initialization' do
-      config = described_class.new(api_key: 'test-key')
+      config = described_class.new(api_key: 'test-key', engine_id: 'test-engine')
       config.batch_size = 100
       expect(config.batch_size).to eq(100)
     end
 
     it 'allows setting ideal_batch_item_size after initialization' do
-      config = described_class.new(api_key: 'test-key')
+      config = described_class.new(api_key: 'test-key', engine_id: 'test-engine')
       config.ideal_batch_item_size = 1500
       expect(config.ideal_batch_item_size).to eq(1500)
     end

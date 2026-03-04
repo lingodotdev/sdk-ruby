@@ -5,9 +5,10 @@ require 'lingodotdev'
 class TranslateController < ApplicationController
   def translate
     api_key = ENV['LINGODOTDEV_API_KEY'] || 'your-api-key-here'
+    engine_id = ENV['LINGODOTDEV_ENGINE_ID'] || 'your-engine-id-here'
 
-    engine = LingoDotDev::Engine.new(api_key: api_key)
-    translated = engine.localize_text('Hello world', target_locale: 'es')
+    engine = LingoDotDev::Engine.new(api_key: api_key, engine_id: engine_id)
+    translated = engine.localize_text('Hello world', target_locale: 'es', source_locale: 'en')
 
     render json: {
       original: 'Hello world',

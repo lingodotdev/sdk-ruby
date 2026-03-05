@@ -16,6 +16,12 @@ RSpec.describe LingoDotDev::Engine do
       expect(engine.config.engine_id).to eq(engine_id)
     end
 
+    it 'creates an engine without engine_id' do
+      engine = described_class.new(api_key: api_key)
+      expect(engine.config.api_key).to eq(api_key)
+      expect(engine.config.engine_id).to be_nil
+    end
+
     it 'creates engine with custom configuration' do
       engine = described_class.new(
         api_key: api_key,

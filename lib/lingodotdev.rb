@@ -54,7 +54,7 @@ end
 # localization with batch operations, progress tracking, and concurrent processing.
 #
 # @example Basic usage
-#   engine = LingoDotDev::Engine.new(api_key: 'your-api-key', engine_id: 'your-engine-id')
+#   engine = LingoDotDev::Engine.new(api_key: 'your-api-key')
 #   result = engine.localize_text('Hello world', target_locale: 'es', source_locale: 'en')
 #   puts result # => "Hola mundo"
 #
@@ -88,7 +88,7 @@ module LingoDotDev
     # @return [String] the API endpoint URL
     attr_accessor :api_url
 
-    # @return [String] the engine ID for localization processing
+    # @return [String, nil] the engine ID for localization processing
     attr_accessor :engine_id
 
     # @return [Integer] maximum number of items per batch (1-250)
@@ -100,13 +100,13 @@ module LingoDotDev
     # Creates a new Configuration instance.
     #
     # @param api_key [String] your Lingo.dev API key (required)
-    # @param engine_id [String] the engine ID for localization processing (required)
+    # @param engine_id [String, nil] the engine ID for localization processing (optional)
     # @param api_url [String] the API endpoint URL (default: 'https://api.lingo.dev')
     # @param batch_size [Integer] maximum items per batch, 1-250 (default: 25)
     # @param ideal_batch_item_size [Integer] target word count per batch item, 1-2500 (default: 250)
     #
     # @raise [ValidationError] if any parameter is invalid
-    def initialize(api_key:, engine_id:, api_url: 'https://api.lingo.dev', batch_size: 25, ideal_batch_item_size: 250)
+    def initialize(api_key:, engine_id: nil, api_url: 'https://api.lingo.dev', batch_size: 25, ideal_batch_item_size: 250)
       @api_key = api_key
       @engine_id = engine_id
       @api_url = api_url
@@ -119,7 +119,6 @@ module LingoDotDev
 
     def validate!
       raise ValidationError, 'API key is required' if api_key.nil? || api_key.empty?
-      raise ValidationError, 'Engine ID is required' if engine_id.nil? || engine_id.empty?
       raise ValidationError, 'API URL must be a valid HTTP/HTTPS URL' unless api_url =~ /\Ahttps?:\/\/.+/
       raise ValidationError, 'Batch size must be between 1 and 250' unless batch_size.is_a?(Integer) && batch_size.between?(1, 250)
       raise ValidationError, 'Ideal batch item size must be between 1 and 2500' unless ideal_batch_item_size.is_a?(Integer) && ideal_batch_item_size.between?(1, 2500)
@@ -151,7 +150,7 @@ module LingoDotDev
     # Creates a new Engine instance.
     #
     # @param api_key [String] your Lingo.dev API key (required)
-    # @param engine_id [String] the engine ID for localization processing (required)
+    # @param engine_id [String, nil] the engine ID for localization processing (optional)
     # @param api_url [String] the API endpoint URL (default: 'https://api.lingo.dev')
     # @param batch_size [Integer] maximum items per batch, 1-250 (default: 25)
     # @param ideal_batch_item_size [Integer] target word count per batch item, 1-2500 (default: 250)
@@ -172,7 +171,7 @@ module LingoDotDev
     #     config.batch_size = 50
     #     config.ideal_batch_item_size = 500
     #   end
-    def initialize(api_key:, engine_id:, api_url: 'https://api.lingo.dev', batch_size: 25, ideal_batch_item_size: 250)
+    def initialize(api_key:, engine_id: nil, api_url: 'https://api.lingo.dev', batch_size: 25, ideal_batch_item_size: 250)
       @config = Configuration.new(
         api_key: api_key,
         engine_id: engine_id,
@@ -685,7 +684,7 @@ module LingoDotDev
     #
     # @param content [String, Hash] the content to translate (String for text, Hash for object)
     # @param api_key [String] your Lingo.dev API key
-    # @param engine_id [String] the engine ID for localization processing
+    # @param engine_id [String, nil] the engine ID for localization processing (optional)
     # @param target_locale [String] the target locale code (e.g., 'es', 'fr', 'ja')
     # @param source_locale [String] the source locale code (e.g., 'en')
     # @param fast [Boolean] enable fast mode for quicker results (default: true)
@@ -709,7 +708,7 @@ module LingoDotDev
     #     source_locale: 'en'
     #   )
     #   # => { greeting: "Bonjour", farewell: "Au revoir" }
-    def self.quick_translate(content, api_key:, engine_id:, target_locale:, source_locale:, fast: true, api_url: 'https://api.lingo.dev')
+    def self.quick_translate(content, api_key:, engine_id: nil, target_locale:, source_locale:, fast: true, api_url: 'https://api.lingo.dev')
       engine = new(api_key: api_key, engine_id: engine_id, api_url: api_url)
       case content
       when String
@@ -739,7 +738,7 @@ module LingoDotDev
     #
     # @param content [String, Hash] the content to translate (String for text, Hash for object)
     # @param api_key [String] your Lingo.dev API key
-    # @param engine_id [String] the engine ID for localization processing
+    # @param engine_id [String, nil] the engine ID for localization processing (optional)
     # @param target_locales [Array<String>] array of target locale codes
     # @param source_locale [String] the source locale code (e.g., 'en')
     # @param fast [Boolean] enable fast mode for quicker results (default: true)
@@ -764,12 +763,11 @@ module LingoDotDev
     #   results = LingoDotDev::Engine.quick_batch_translate(
     #     { greeting: 'Hello' },
     #     api_key: 'your-api-key',
-    #     engine_id: 'your-engine-id',
     #     target_locales: ['es', 'fr'],
     #     source_locale: 'en'
     #   )
     #   # => [{ greeting: "Hola" }, { greeting: "Bonjour" }]
-    def self.quick_batch_translate(content, api_key:, engine_id:, target_locales:, source_locale:, fast: true, api_url: 'https://api.lingo.dev')
+    def self.quick_batch_translate(content, api_key:, engine_id: nil, target_locales:, source_locale:, fast: true, api_url: 'https://api.lingo.dev')
       engine = new(api_key: api_key, engine_id: engine_id, api_url: api_url)
       case content
       when String
@@ -865,6 +863,8 @@ module LingoDotDev
         sessionId: @session_id
       }
 
+      request_body[:engineId] = config.engine_id unless config.engine_id.nil?
+
       if reference && !reference.empty?
         raise ValidationError, 'Reference must be a Hash' unless reference.is_a?(Hash)
         request_body[:reference] = reference
@@ -874,7 +874,7 @@ module LingoDotDev
 
       begin
         response = make_request(
-          "#{config.api_url}/process/#{config.engine_id}/localize",
+          "#{config.api_url}/process/localize",
           json: request_body
         )
 

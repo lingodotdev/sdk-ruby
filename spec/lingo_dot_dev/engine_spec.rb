@@ -4,19 +4,28 @@ require 'spec_helper'
 
 RSpec.describe LingoDotDev::Engine do
   let(:api_key) { ENV['LINGODOTDEV_API_KEY'] }
-  let(:api_url) { 'https://engine.lingo.dev' }
+  let(:engine_id) { ENV['LINGODOTDEV_ENGINE_ID'] }
+  let(:api_url) { 'https://api.lingo.dev' }
   let(:target_locale) { 'es' }
   let(:source_locale) { 'en' }
 
   describe 'initialization' do
-    it 'creates an engine with valid api_key' do
+    it 'creates an engine with valid api_key and engine_id' do
+      engine = described_class.new(api_key: api_key, engine_id: engine_id)
+      expect(engine.config.api_key).to eq(api_key)
+      expect(engine.config.engine_id).to eq(engine_id)
+    end
+
+    it 'creates an engine without engine_id' do
       engine = described_class.new(api_key: api_key)
       expect(engine.config.api_key).to eq(api_key)
+      expect(engine.config.engine_id).to be_nil
     end
 
     it 'creates engine with custom configuration' do
       engine = described_class.new(
         api_key: api_key,
+        engine_id: engine_id,
         api_url: 'https://custom.example.com',
         batch_size: 50,
         ideal_batch_item_size: 500
@@ -27,7 +36,7 @@ RSpec.describe LingoDotDev::Engine do
     end
 
     it 'allows block-based configuration' do
-      engine = described_class.new(api_key: api_key) do |config|
+      engine = described_class.new(api_key: api_key, engine_id: engine_id) do |config|
         config.batch_size = 75
       end
       expect(engine.config.batch_size).to eq(75)
@@ -36,17 +45,7 @@ RSpec.describe LingoDotDev::Engine do
 
   describe '#localize_text' do
     it 'localizes text to target locale' do
-      engine = described_class.new(api_key: api_key)
-      result = engine.localize_text(
-        'Hello world',
-        target_locale: target_locale
-      )
-      expect(result).to be_a(String)
-      expect(result.length).to be > 0
-    end
-
-    it 'localizes text with source locale specified' do
-      engine = described_class.new(api_key: api_key)
+      engine = described_class.new(api_key: api_key, engine_id: engine_id)
       result = engine.localize_text(
         'Hello world',
         target_locale: target_locale,
@@ -57,10 +56,11 @@ RSpec.describe LingoDotDev::Engine do
     end
 
     it 'localizes text with fast flag' do
-      engine = described_class.new(api_key: api_key)
+      engine = described_class.new(api_key: api_key, engine_id: engine_id)
       result = engine.localize_text(
         'Hello world',
         target_locale: target_locale,
+        source_locale: source_locale,
         fast: true
       )
       expect(result).to be_a(String)
@@ -68,11 +68,12 @@ RSpec.describe LingoDotDev::Engine do
     end
 
     it 'localizes text with reference context' do
-      engine = described_class.new(api_key: api_key)
+      engine = described_class.new(api_key: api_key, engine_id: engine_id)
       reference = { context: 'greeting' }
       result = engine.localize_text(
         'Hello',
         target_locale: target_locale,
+        source_locale: source_locale,
         reference: reference
       )
       expect(result).to be_a(String)
@@ -80,201 +81,189 @@ RSpec.describe LingoDotDev::Engine do
     end
 
     it 'supports progress callback block' do
-      engine = described_class.new(api_key: api_key)
+      engine = described_class.new(api_key: api_key, engine_id: engine_id)
       progress_updates = []
       result = engine.localize_text(
         'Hello world',
-        target_locale: target_locale
+        target_locale: target_locale,
+        source_locale: source_locale
       ) { |progress| progress_updates << progress }
       expect(result).to be_a(String)
       expect(progress_updates).not_to be_empty if result.length > 0
     end
 
     it 'supports on_progress callback parameter' do
-      engine = described_class.new(api_key: api_key)
+      engine = described_class.new(api_key: api_key, engine_id: engine_id)
       progress_updates = []
       result = engine.localize_text(
         'Hello world',
         target_locale: target_locale,
+        source_locale: source_locale,
         on_progress: proc { |progress| progress_updates << progress }
       )
       expect(result).to be_a(String)
     end
 
     it 'raises ValidationError when target_locale is nil' do
-      engine = described_class.new(api_key: api_key)
+      engine = described_class.new(api_key: api_key, engine_id: engine_id)
       expect {
-        engine.localize_text('Hello', target_locale: nil)
+        engine.localize_text('Hello', target_locale: nil, source_locale: source_locale)
       }.to raise_error(LingoDotDev::ValidationError, /Target locale is required/)
     end
 
     it 'raises ValidationError when target_locale is empty' do
-      engine = described_class.new(api_key: api_key)
+      engine = described_class.new(api_key: api_key, engine_id: engine_id)
       expect {
-        engine.localize_text('Hello', target_locale: '')
+        engine.localize_text('Hello', target_locale: '', source_locale: source_locale)
       }.to raise_error(LingoDotDev::ValidationError, /Target locale is required/)
     end
 
     it 'raises ValidationError when text is nil' do
-      engine = described_class.new(api_key: api_key)
+      engine = described_class.new(api_key: api_key, engine_id: engine_id)
       expect {
-        engine.localize_text(nil, target_locale: target_locale)
+        engine.localize_text(nil, target_locale: target_locale, source_locale: source_locale)
       }.to raise_error(LingoDotDev::ValidationError, /Text cannot be nil/)
     end
   end
 
   describe '#localize_object' do
     it 'localizes a hash object to target locale' do
-      engine = described_class.new(api_key: api_key)
+      engine = described_class.new(api_key: api_key, engine_id: engine_id)
       obj = { greeting: 'Hello', farewell: 'Goodbye' }
-      result = engine.localize_object(
-        obj,
-        target_locale: target_locale
-      )
-      expect(result).to be_a(Hash)
-      expect(result.keys).to include('greeting', 'farewell')
-    end
-
-    it 'localizes object with source locale' do
-      engine = described_class.new(api_key: api_key)
-      obj = { message: 'Hello world' }
       result = engine.localize_object(
         obj,
         target_locale: target_locale,
         source_locale: source_locale
       )
       expect(result).to be_a(Hash)
+      expect(result.keys).to include('greeting', 'farewell')
     end
 
     it 'localizes object with fast flag' do
-      engine = described_class.new(api_key: api_key)
+      engine = described_class.new(api_key: api_key, engine_id: engine_id)
       obj = { greeting: 'Hi' }
       result = engine.localize_object(
         obj,
         target_locale: target_locale,
+        source_locale: source_locale,
         fast: true
       )
       expect(result).to be_a(Hash)
     end
 
     it 'supports progress callback for objects' do
-      engine = described_class.new(api_key: api_key)
+      engine = described_class.new(api_key: api_key, engine_id: engine_id)
       obj = { text: 'Hello' }
       progress_updates = []
       result = engine.localize_object(
         obj,
-        target_locale: target_locale
+        target_locale: target_locale,
+        source_locale: source_locale
       ) { |progress| progress_updates << progress }
       expect(result).to be_a(Hash)
     end
 
     it 'raises ValidationError when target_locale is nil' do
-      engine = described_class.new(api_key: api_key)
+      engine = described_class.new(api_key: api_key, engine_id: engine_id)
       expect {
-        engine.localize_object({ text: 'Hello' }, target_locale: nil)
+        engine.localize_object({ text: 'Hello' }, target_locale: nil, source_locale: source_locale)
       }.to raise_error(LingoDotDev::ValidationError, /Target locale is required/)
     end
 
     it 'raises ValidationError when object is nil' do
-      engine = described_class.new(api_key: api_key)
+      engine = described_class.new(api_key: api_key, engine_id: engine_id)
       expect {
-        engine.localize_object(nil, target_locale: target_locale)
+        engine.localize_object(nil, target_locale: target_locale, source_locale: source_locale)
       }.to raise_error(LingoDotDev::ValidationError, /Object cannot be nil/)
     end
 
     it 'raises ValidationError when object is not a Hash' do
-      engine = described_class.new(api_key: api_key)
+      engine = described_class.new(api_key: api_key, engine_id: engine_id)
       expect {
-        engine.localize_object('not a hash', target_locale: target_locale)
+        engine.localize_object('not a hash', target_locale: target_locale, source_locale: source_locale)
       }.to raise_error(LingoDotDev::ValidationError, /Object must be a Hash/)
     end
   end
 
   describe '#localize_chat' do
     it 'localizes chat messages to target locale' do
-      engine = described_class.new(api_key: api_key)
+      engine = described_class.new(api_key: api_key, engine_id: engine_id)
       chat = [
         { name: 'user', text: 'Hello!' },
         { name: 'assistant', text: 'Hi there!' }
       ]
       result = engine.localize_chat(
         chat,
-        target_locale: target_locale
+        target_locale: target_locale,
+        source_locale: source_locale
       )
       expect(result).to be_an(Array)
       expect(result.length).to eq(2)
     end
 
-    it 'localizes chat with source locale' do
-      engine = described_class.new(api_key: api_key)
-      chat = [{ name: 'user', text: 'Hello' }]
-      result = engine.localize_chat(
-        chat,
-        target_locale: target_locale,
-        source_locale: source_locale
-      )
-      expect(result).to be_an(Array)
-    end
-
     it 'localizes chat with fast flag' do
-      engine = described_class.new(api_key: api_key)
+      engine = described_class.new(api_key: api_key, engine_id: engine_id)
       chat = [{ name: 'user', text: 'Hi' }]
       result = engine.localize_chat(
         chat,
         target_locale: target_locale,
+        source_locale: source_locale,
         fast: true
       )
       expect(result).to be_an(Array)
     end
 
     it 'supports progress callback for chat' do
-      engine = described_class.new(api_key: api_key)
+      engine = described_class.new(api_key: api_key, engine_id: engine_id)
       chat = [{ name: 'user', text: 'Hello' }]
       progress_updates = []
       result = engine.localize_chat(
         chat,
-        target_locale: target_locale
+        target_locale: target_locale,
+        source_locale: source_locale
       ) { |progress| progress_updates << progress }
       expect(result).to be_an(Array)
     end
 
     it 'raises ValidationError when target_locale is nil' do
-      engine = described_class.new(api_key: api_key)
+      engine = described_class.new(api_key: api_key, engine_id: engine_id)
       expect {
-        engine.localize_chat([], target_locale: nil)
+        engine.localize_chat([], target_locale: nil, source_locale: source_locale)
       }.to raise_error(LingoDotDev::ValidationError, /Target locale is required/)
     end
 
     it 'raises ValidationError when chat is nil' do
-      engine = described_class.new(api_key: api_key)
+      engine = described_class.new(api_key: api_key, engine_id: engine_id)
       expect {
-        engine.localize_chat(nil, target_locale: target_locale)
+        engine.localize_chat(nil, target_locale: target_locale, source_locale: source_locale)
       }.to raise_error(LingoDotDev::ValidationError, /Chat cannot be nil/)
     end
 
     it 'raises ValidationError when chat is not an Array' do
-      engine = described_class.new(api_key: api_key)
+      engine = described_class.new(api_key: api_key, engine_id: engine_id)
       expect {
-        engine.localize_chat({}, target_locale: target_locale)
+        engine.localize_chat({}, target_locale: target_locale, source_locale: source_locale)
       }.to raise_error(LingoDotDev::ValidationError, /Chat must be an Array/)
     end
 
     it 'raises ValidationError when chat messages lack name' do
-      engine = described_class.new(api_key: api_key)
+      engine = described_class.new(api_key: api_key, engine_id: engine_id)
       expect {
         engine.localize_chat(
           [{ text: 'Hello' }],
-          target_locale: target_locale
+          target_locale: target_locale,
+          source_locale: source_locale
         )
       }.to raise_error(LingoDotDev::ValidationError, /:name and :text keys/)
     end
 
     it 'raises ValidationError when chat messages lack text' do
-      engine = described_class.new(api_key: api_key)
+      engine = described_class.new(api_key: api_key, engine_id: engine_id)
       expect {
         engine.localize_chat(
           [{ name: 'user' }],
-          target_locale: target_locale
+          target_locale: target_locale,
+          source_locale: source_locale
         )
       }.to raise_error(LingoDotDev::ValidationError, /:name and :text keys/)
     end
@@ -309,7 +298,7 @@ RSpec.describe LingoDotDev::Engine do
         </html>
       HTML
 
-      engine = described_class.new(api_key: api_key)
+      engine = described_class.new(api_key: api_key, engine_id: engine_id)
       extracted_content = nil
       call_params = nil
 
@@ -357,7 +346,7 @@ RSpec.describe LingoDotDev::Engine do
 
     it 'localizes HTML with source locale' do
       html = '<html><head><title>Hello</title></head><body><p>World</p></body></html>'
-      engine = described_class.new(api_key: api_key)
+      engine = described_class.new(api_key: api_key, engine_id: engine_id)
       call_params = nil
       allow(engine).to receive(:localize_raw) do |content, params, &block|
         call_params = params
@@ -373,82 +362,73 @@ RSpec.describe LingoDotDev::Engine do
 
     it 'localizes HTML with fast flag' do
       html = '<html><head><title>Hello</title></head><body><p>World</p></body></html>'
-      engine = described_class.new(api_key: api_key)
+      engine = described_class.new(api_key: api_key, engine_id: engine_id)
       call_params = nil
       allow(engine).to receive(:localize_raw) do |content, params, &block|
         call_params = params
         { 'head/0/0' => 'Hola', 'body/0/0' => 'Mundo' }
       end
 
-      result = engine.localize_html(html, target_locale: 'es', fast: true)
+      result = engine.localize_html(html, target_locale: 'es', source_locale: 'en', fast: true)
 
       expect(call_params[:fast]).to eq(true)
     end
 
     it 'supports progress callback for HTML' do
       html = '<html><head><title>Hello</title></head><body><p>World</p></body></html>'
-      engine = described_class.new(api_key: api_key)
+      engine = described_class.new(api_key: api_key, engine_id: engine_id)
       progress_updates = []
       allow(engine).to receive(:localize_raw) do |content, params, &block|
         block&.call(100, {}, {})
         { 'head/0/0' => 'Hola', 'body/0/0' => 'Mundo' }
       end
 
-      result = engine.localize_html(html, target_locale: 'es') { |progress| progress_updates << progress }
+      result = engine.localize_html(html, target_locale: 'es', source_locale: 'en') { |progress| progress_updates << progress }
 
       expect(progress_updates).not_to be_empty
     end
 
     it 'raises ValidationError when target_locale is nil' do
-      engine = described_class.new(api_key: api_key)
+      engine = described_class.new(api_key: api_key, engine_id: engine_id)
       expect {
-        engine.localize_html('<html></html>', target_locale: nil)
+        engine.localize_html('<html></html>', target_locale: nil, source_locale: source_locale)
       }.to raise_error(LingoDotDev::ValidationError, /Target locale is required/)
     end
 
     it 'raises ValidationError when target_locale is empty' do
-      engine = described_class.new(api_key: api_key)
+      engine = described_class.new(api_key: api_key, engine_id: engine_id)
       expect {
-        engine.localize_html('<html></html>', target_locale: '')
+        engine.localize_html('<html></html>', target_locale: '', source_locale: source_locale)
       }.to raise_error(LingoDotDev::ValidationError, /Target locale is required/)
     end
 
     it 'raises ValidationError when html is nil' do
-      engine = described_class.new(api_key: api_key)
+      engine = described_class.new(api_key: api_key, engine_id: engine_id)
       expect {
-        engine.localize_html(nil, target_locale: 'es')
+        engine.localize_html(nil, target_locale: 'es', source_locale: source_locale)
       }.to raise_error(LingoDotDev::ValidationError, /HTML cannot be nil/)
     end
   end
 
   describe '#batch_localize_text' do
     it 'batch localizes text to multiple locales' do
-      engine = described_class.new(api_key: api_key)
+      engine = described_class.new(api_key: api_key, engine_id: engine_id)
       results = engine.batch_localize_text(
         'Hello world',
-        target_locales: ['es', 'fr']
+        target_locales: ['es', 'fr'],
+        source_locale: source_locale
       )
       expect(results).to be_an(Array)
       expect(results.length).to eq(2)
       expect(results.all? { |r| r.is_a?(String) }).to be true
     end
 
-    it 'batch localizes with source locale' do
-      engine = described_class.new(api_key: api_key)
-      results = engine.batch_localize_text(
-        'Hello',
-        target_locales: ['es', 'de'],
-        source_locale: source_locale
-      )
-      expect(results).to be_an(Array)
-      expect(results.length).to eq(2)
-    end
-
     it 'batch localizes with fast flag' do
-      engine = described_class.new(api_key: api_key)
+      engine = described_class.new(api_key: api_key, engine_id: engine_id)
       results = engine.batch_localize_text(
         'Hi',
         target_locales: ['es', 'fr'],
+        source_locale: source_locale,
         fast: true
       )
       expect(results).to be_an(Array)
@@ -456,10 +436,11 @@ RSpec.describe LingoDotDev::Engine do
     end
 
     it 'batch localizes concurrently' do
-      engine = described_class.new(api_key: api_key)
+      engine = described_class.new(api_key: api_key, engine_id: engine_id)
       results = engine.batch_localize_text(
         'Hello world',
         target_locales: ['es', 'fr', 'de'],
+        source_locale: source_locale,
         concurrent: true
       )
       expect(results).to be_an(Array)
@@ -467,67 +448,58 @@ RSpec.describe LingoDotDev::Engine do
     end
 
     it 'raises ValidationError when text is nil' do
-      engine = described_class.new(api_key: api_key)
+      engine = described_class.new(api_key: api_key, engine_id: engine_id)
       expect {
-        engine.batch_localize_text(nil, target_locales: ['es'])
+        engine.batch_localize_text(nil, target_locales: ['es'], source_locale: source_locale)
       }.to raise_error(LingoDotDev::ValidationError, /Text cannot be nil/)
     end
 
     it 'raises ValidationError when target_locales is not an Array' do
-      engine = described_class.new(api_key: api_key)
+      engine = described_class.new(api_key: api_key, engine_id: engine_id)
       expect {
-        engine.batch_localize_text('Hello', target_locales: 'es')
+        engine.batch_localize_text('Hello', target_locales: 'es', source_locale: source_locale)
       }.to raise_error(LingoDotDev::ValidationError, /Target locales must be an Array/)
     end
 
     it 'raises ValidationError when target_locales is empty' do
-      engine = described_class.new(api_key: api_key)
+      engine = described_class.new(api_key: api_key, engine_id: engine_id)
       expect {
-        engine.batch_localize_text('Hello', target_locales: [])
+        engine.batch_localize_text('Hello', target_locales: [], source_locale: source_locale)
       }.to raise_error(LingoDotDev::ValidationError, /Target locales cannot be empty/)
     end
   end
 
   describe '#batch_localize_objects' do
     it 'batch localizes multiple objects to same locale' do
-      engine = described_class.new(api_key: api_key)
+      engine = described_class.new(api_key: api_key, engine_id: engine_id)
       objects = [
         { greeting: 'Hello' },
         { farewell: 'Goodbye' }
       ]
       results = engine.batch_localize_objects(
         objects,
-        target_locale: target_locale
+        target_locale: target_locale,
+        source_locale: source_locale
       )
       expect(results).to be_an(Array)
       expect(results.length).to eq(2)
       expect(results.all? { |r| r.is_a?(Hash) }).to be true
     end
 
-    it 'batch localizes objects with source locale' do
-      engine = described_class.new(api_key: api_key)
-      objects = [{ text: 'Hello' }]
-      results = engine.batch_localize_objects(
-        objects,
-        target_locale: target_locale,
-        source_locale: source_locale
-      )
-      expect(results).to be_an(Array)
-    end
-
     it 'batch localizes objects with fast flag' do
-      engine = described_class.new(api_key: api_key)
+      engine = described_class.new(api_key: api_key, engine_id: engine_id)
       objects = [{ text: 'Hi' }]
       results = engine.batch_localize_objects(
         objects,
         target_locale: target_locale,
+        source_locale: source_locale,
         fast: true
       )
       expect(results).to be_an(Array)
     end
 
     it 'batch localizes objects concurrently' do
-      engine = described_class.new(api_key: api_key)
+      engine = described_class.new(api_key: api_key, engine_id: engine_id)
       objects = [
         { text: 'Hello' },
         { text: 'Hi' },
@@ -536,6 +508,7 @@ RSpec.describe LingoDotDev::Engine do
       results = engine.batch_localize_objects(
         objects,
         target_locale: target_locale,
+        source_locale: source_locale,
         concurrent: true
       )
       expect(results).to be_an(Array)
@@ -543,38 +516,41 @@ RSpec.describe LingoDotDev::Engine do
     end
 
     it 'raises ValidationError when objects is not an Array' do
-      engine = described_class.new(api_key: api_key)
+      engine = described_class.new(api_key: api_key, engine_id: engine_id)
       expect {
         engine.batch_localize_objects(
           { text: 'Hello' },
-          target_locale: target_locale
+          target_locale: target_locale,
+          source_locale: source_locale
         )
       }.to raise_error(LingoDotDev::ValidationError, /Objects must be an Array/)
     end
 
     it 'raises ValidationError when objects is empty' do
-      engine = described_class.new(api_key: api_key)
+      engine = described_class.new(api_key: api_key, engine_id: engine_id)
       expect {
-        engine.batch_localize_objects([], target_locale: target_locale)
+        engine.batch_localize_objects([], target_locale: target_locale, source_locale: source_locale)
       }.to raise_error(LingoDotDev::ValidationError, /Objects cannot be empty/)
     end
 
     it 'raises ValidationError when target_locale is nil' do
-      engine = described_class.new(api_key: api_key)
+      engine = described_class.new(api_key: api_key, engine_id: engine_id)
       expect {
         engine.batch_localize_objects(
           [{ text: 'Hello' }],
-          target_locale: nil
+          target_locale: nil,
+          source_locale: source_locale
         )
       }.to raise_error(LingoDotDev::ValidationError, /Target locale is required/)
     end
 
     it 'raises ValidationError when object is not a Hash' do
-      engine = described_class.new(api_key: api_key)
+      engine = described_class.new(api_key: api_key, engine_id: engine_id)
       expect {
         engine.batch_localize_objects(
           ['not a hash'],
-          target_locale: target_locale
+          target_locale: target_locale,
+          source_locale: source_locale
         )
       }.to raise_error(LingoDotDev::ValidationError, /Each object must be a Hash/)
     end
@@ -582,28 +558,28 @@ RSpec.describe LingoDotDev::Engine do
 
   describe '#recognize_locale' do
     it 'recognizes locale of given text' do
-      engine = described_class.new(api_key: api_key)
+      engine = described_class.new(api_key: api_key, engine_id: engine_id)
       locale = engine.recognize_locale('Hello world')
       expect(locale).to be_a(String)
       expect(locale.length).to be > 0
     end
 
     it 'raises ValidationError when text is nil' do
-      engine = described_class.new(api_key: api_key)
+      engine = described_class.new(api_key: api_key, engine_id: engine_id)
       expect {
         engine.recognize_locale(nil)
       }.to raise_error(LingoDotDev::ValidationError, /Text cannot be empty/)
     end
 
     it 'raises ValidationError when text is empty' do
-      engine = described_class.new(api_key: api_key)
+      engine = described_class.new(api_key: api_key, engine_id: engine_id)
       expect {
         engine.recognize_locale('')
       }.to raise_error(LingoDotDev::ValidationError, /Text cannot be empty/)
     end
 
     it 'raises ValidationError when text is only whitespace' do
-      engine = described_class.new(api_key: api_key)
+      engine = described_class.new(api_key: api_key, engine_id: engine_id)
       expect {
         engine.recognize_locale('   ')
       }.to raise_error(LingoDotDev::ValidationError, /Text cannot be empty/)
@@ -612,7 +588,7 @@ RSpec.describe LingoDotDev::Engine do
 
   describe '#whoami' do
     it 'returns user information' do
-      engine = described_class.new(api_key: api_key)
+      engine = described_class.new(api_key: api_key, engine_id: engine_id)
       result = engine.whoami
       if result
         expect(result).to be_a(Hash)
@@ -626,7 +602,9 @@ RSpec.describe LingoDotDev::Engine do
       result = described_class.quick_translate(
         'Hello world',
         api_key: api_key,
-        target_locale: target_locale
+        engine_id: engine_id,
+        target_locale: target_locale,
+        source_locale: source_locale
       )
       expect(result).to be_a(String)
       expect(result.length).to be > 0
@@ -636,7 +614,9 @@ RSpec.describe LingoDotDev::Engine do
       result = described_class.quick_translate(
         { greeting: 'Hello', farewell: 'Goodbye' },
         api_key: api_key,
-        target_locale: target_locale
+        engine_id: engine_id,
+        target_locale: target_locale,
+        source_locale: source_locale
       )
       expect(result).to be_a(Hash)
     end
@@ -646,7 +626,9 @@ RSpec.describe LingoDotDev::Engine do
         described_class.quick_translate(
           123,
           api_key: api_key,
-          target_locale: target_locale
+          engine_id: engine_id,
+          target_locale: target_locale,
+          source_locale: source_locale
         )
       }.to raise_error(LingoDotDev::ValidationError, /Content must be a String or Hash/)
     end
@@ -657,7 +639,9 @@ RSpec.describe LingoDotDev::Engine do
       results = described_class.quick_batch_translate(
         'Hello',
         api_key: api_key,
-        target_locales: ['es', 'fr']
+        engine_id: engine_id,
+        target_locales: ['es', 'fr'],
+        source_locale: source_locale
       )
       expect(results).to be_an(Array)
       expect(results.length).to eq(2)
@@ -668,7 +652,9 @@ RSpec.describe LingoDotDev::Engine do
       results = described_class.quick_batch_translate(
         { greeting: 'Hello' },
         api_key: api_key,
-        target_locales: ['es', 'fr']
+        engine_id: engine_id,
+        target_locales: ['es', 'fr'],
+        source_locale: source_locale
       )
       expect(results).to be_an(Array)
       expect(results.length).to eq(2)
@@ -680,7 +666,9 @@ RSpec.describe LingoDotDev::Engine do
         described_class.quick_batch_translate(
           123,
           api_key: api_key,
-          target_locales: ['es']
+          engine_id: engine_id,
+          target_locales: ['es'],
+          source_locale: source_locale
         )
       }.to raise_error(LingoDotDev::ValidationError, /Content must be a String or Hash/)
     end

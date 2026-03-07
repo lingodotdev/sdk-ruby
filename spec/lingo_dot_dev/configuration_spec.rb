@@ -7,11 +7,18 @@ RSpec.describe LingoDotDev::Configuration do
     it 'creates a configuration with valid api_key' do
       config = described_class.new(api_key: 'test-key')
       expect(config.api_key).to eq('test-key')
+      expect(config.engine_id).to be_nil
+    end
+
+    it 'creates a configuration with api_key and engine_id' do
+      config = described_class.new(api_key: 'test-key', engine_id: 'test-engine')
+      expect(config.api_key).to eq('test-key')
+      expect(config.engine_id).to eq('test-engine')
     end
 
     it 'uses default api_url' do
       config = described_class.new(api_key: 'test-key')
-      expect(config.api_url).to eq('https://engine.lingo.dev')
+      expect(config.api_url).to eq('https://api.lingo.dev')
     end
 
     it 'uses default batch_size' do
@@ -129,6 +136,12 @@ RSpec.describe LingoDotDev::Configuration do
       config = described_class.new(api_key: 'test-key')
       config.api_url = 'https://new-url.com'
       expect(config.api_url).to eq('https://new-url.com')
+    end
+
+    it 'allows setting engine_id after initialization' do
+      config = described_class.new(api_key: 'test-key')
+      config.engine_id = 'new-engine'
+      expect(config.engine_id).to eq('new-engine')
     end
 
     it 'allows setting batch_size after initialization' do

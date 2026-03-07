@@ -55,7 +55,7 @@ end
 #
 # @example Basic usage
 #   engine = LingoDotDev::Engine.new(api_key: 'your-api-key')
-#   result = engine.localize_text('Hello world', target_locale: 'es')
+#   result = engine.localize_text('Hello world', target_locale: 'es', source_locale: 'en')
 #   puts result # => "Hola mundo"
 #
 # @see Engine
@@ -88,6 +88,9 @@ module LingoDotDev
     # @return [String] the API endpoint URL
     attr_accessor :api_url
 
+    # @return [String, nil] the engine ID for localization processing
+    attr_accessor :engine_id
+
     # @return [Integer] maximum number of items per batch (1-250)
     attr_accessor :batch_size
 
@@ -97,13 +100,15 @@ module LingoDotDev
     # Creates a new Configuration instance.
     #
     # @param api_key [String] your Lingo.dev API key (required)
-    # @param api_url [String] the API endpoint URL (default: 'https://engine.lingo.dev')
+    # @param engine_id [String, nil] the engine ID for localization processing (optional)
+    # @param api_url [String] the API endpoint URL (default: 'https://api.lingo.dev')
     # @param batch_size [Integer] maximum items per batch, 1-250 (default: 25)
     # @param ideal_batch_item_size [Integer] target word count per batch item, 1-2500 (default: 250)
     #
     # @raise [ValidationError] if any parameter is invalid
-    def initialize(api_key:, api_url: 'https://engine.lingo.dev', batch_size: 25, ideal_batch_item_size: 250)
+    def initialize(api_key:, engine_id: nil, api_url: 'https://api.lingo.dev', batch_size: 25, ideal_batch_item_size: 250)
       @api_key = api_key
+      @engine_id = engine_id
       @api_url = api_url
       @batch_size = batch_size
       @ideal_batch_item_size = ideal_batch_item_size
@@ -126,17 +131,17 @@ module LingoDotDev
   # with support for batch operations, progress tracking, and concurrent processing.
   #
   # @example Basic text localization
-  #   engine = LingoDotDev::Engine.new(api_key: 'your-api-key')
-  #   result = engine.localize_text('Hello', target_locale: 'es')
+  #   engine = LingoDotDev::Engine.new(api_key: 'your-api-key', engine_id: 'your-engine-id')
+  #   result = engine.localize_text('Hello', target_locale: 'es', source_locale: 'en')
   #   # => "Hola"
   #
   # @example Object localization
   #   data = { greeting: 'Hello', farewell: 'Goodbye' }
-  #   result = engine.localize_object(data, target_locale: 'fr')
+  #   result = engine.localize_object(data, target_locale: 'fr', source_locale: 'en')
   #   # => { greeting: "Bonjour", farewell: "Au revoir" }
   #
   # @example Batch localization
-  #   results = engine.batch_localize_text('Hello', target_locales: ['es', 'fr', 'de'])
+  #   results = engine.batch_localize_text('Hello', target_locales: ['es', 'fr', 'de'], source_locale: 'en')
   #   # => ["Hola", "Bonjour", "Hallo"]
   class Engine
     # @return [Configuration] the engine's configuration
@@ -145,7 +150,8 @@ module LingoDotDev
     # Creates a new Engine instance.
     #
     # @param api_key [String] your Lingo.dev API key (required)
-    # @param api_url [String] the API endpoint URL (default: 'https://engine.lingo.dev')
+    # @param engine_id [String, nil] the engine ID for localization processing (optional)
+    # @param api_url [String] the API endpoint URL (default: 'https://api.lingo.dev')
     # @param batch_size [Integer] maximum items per batch, 1-250 (default: 25)
     # @param ideal_batch_item_size [Integer] target word count per batch item, 1-2500 (default: 250)
     #
@@ -155,23 +161,25 @@ module LingoDotDev
     # @raise [ValidationError] if any parameter is invalid
     #
     # @example Basic initialization
-    #   engine = LingoDotDev::Engine.new(api_key: 'your-api-key')
+    #   engine = LingoDotDev::Engine.new(api_key: 'your-api-key', engine_id: 'your-engine-id')
     #
     # @example With custom configuration
-    #   engine = LingoDotDev::Engine.new(api_key: 'your-api-key', batch_size: 50)
+    #   engine = LingoDotDev::Engine.new(api_key: 'your-api-key', engine_id: 'your-engine-id', batch_size: 50)
     #
     # @example With block configuration
-    #   engine = LingoDotDev::Engine.new(api_key: 'your-api-key') do |config|
+    #   engine = LingoDotDev::Engine.new(api_key: 'your-api-key', engine_id: 'your-engine-id') do |config|
     #     config.batch_size = 50
     #     config.ideal_batch_item_size = 500
     #   end
-    def initialize(api_key:, api_url: 'https://engine.lingo.dev', batch_size: 25, ideal_batch_item_size: 250)
+    def initialize(api_key:, engine_id: nil, api_url: 'https://api.lingo.dev', batch_size: 25, ideal_batch_item_size: 250)
       @config = Configuration.new(
         api_key: api_key,
+        engine_id: engine_id,
         api_url: api_url,
         batch_size: batch_size,
         ideal_batch_item_size: ideal_batch_item_size
       )
+      @session_id = SecureRandom.hex(16)
       yield @config if block_given?
       @config.send(:validate!)
     end
@@ -180,7 +188,7 @@ module LingoDotDev
     #
     # @param text [String] the text to localize
     # @param target_locale [String] the target locale code (e.g., 'es', 'fr', 'ja')
-    # @param source_locale [String, nil] the source locale code (optional, auto-detected if not provided)
+    # @param source_locale [String] the source locale code (e.g., 'en')
     # @param fast [Boolean, nil] enable fast mode for quicker results (optional)
     # @param reference [Hash, nil] additional context for translation (optional)
     # @param on_progress [Proc, nil] callback for progress updates (optional)
@@ -195,18 +203,14 @@ module LingoDotDev
     # @raise [APIError] if the API request fails
     #
     # @example Basic usage
-    #   result = engine.localize_text('Hello', target_locale: 'es')
+    #   result = engine.localize_text('Hello', target_locale: 'es', source_locale: 'en')
     #   # => "Hola"
     #
-    # @example With source locale
-    #   result = engine.localize_text('Hello', target_locale: 'fr', source_locale: 'en')
-    #   # => "Bonjour"
-    #
     # @example With progress tracking
-    #   result = engine.localize_text('Hello', target_locale: 'de') do |progress|
+    #   result = engine.localize_text('Hello', target_locale: 'de', source_locale: 'en') do |progress|
     #     puts "Progress: #{progress}%"
     #   end
-    def localize_text(text, target_locale:, source_locale: nil, fast: nil, reference: nil, on_progress: nil, concurrent: false, &block)
+    def localize_text(text, target_locale:, source_locale:, fast: nil, reference: nil, on_progress: nil, concurrent: false, &block)
       raise ValidationError, 'Target locale is required' if target_locale.nil? || target_locale.empty?
       raise ValidationError, 'Text cannot be nil' if text.nil?
 
@@ -231,7 +235,7 @@ module LingoDotDev
     #
     # @param obj [Hash] the Hash object to localize
     # @param target_locale [String] the target locale code (e.g., 'es', 'fr', 'ja')
-    # @param source_locale [String, nil] the source locale code (optional, auto-detected if not provided)
+    # @param source_locale [String] the source locale code (e.g., 'en')
     # @param fast [Boolean, nil] enable fast mode for quicker results (optional)
     # @param reference [Hash, nil] additional context for translation (optional)
     # @param on_progress [Proc, nil] callback for progress updates (optional)
@@ -247,9 +251,9 @@ module LingoDotDev
     #
     # @example Basic usage
     #   data = { greeting: 'Hello', farewell: 'Goodbye' }
-    #   result = engine.localize_object(data, target_locale: 'es')
+    #   result = engine.localize_object(data, target_locale: 'es', source_locale: 'en')
     #   # => { greeting: "Hola", farewell: "Adiós" }
-    def localize_object(obj, target_locale:, source_locale: nil, fast: nil, reference: nil, on_progress: nil, concurrent: false, &block)
+    def localize_object(obj, target_locale:, source_locale:, fast: nil, reference: nil, on_progress: nil, concurrent: false, &block)
       raise ValidationError, 'Target locale is required' if target_locale.nil? || target_locale.empty?
       raise ValidationError, 'Object cannot be nil' if obj.nil?
       raise ValidationError, 'Object must be a Hash' unless obj.is_a?(Hash)
@@ -277,7 +281,7 @@ module LingoDotDev
     #
     # @param chat [Array<Hash>] array of chat messages, each with :name and :text keys
     # @param target_locale [String] the target locale code (e.g., 'es', 'fr', 'ja')
-    # @param source_locale [String, nil] the source locale code (optional, auto-detected if not provided)
+    # @param source_locale [String] the source locale code (e.g., 'en')
     # @param fast [Boolean, nil] enable fast mode for quicker results (optional)
     # @param reference [Hash, nil] additional context for translation (optional)
     # @param on_progress [Proc, nil] callback for progress updates (optional)
@@ -296,12 +300,12 @@ module LingoDotDev
     #     { name: 'user', text: 'Hello!' },
     #     { name: 'assistant', text: 'Hi there!' }
     #   ]
-    #   result = engine.localize_chat(chat, target_locale: 'ja')
+    #   result = engine.localize_chat(chat, target_locale: 'ja', source_locale: 'en')
     #   # => [
     #   #   { name: 'user', text: 'こんにちは！' },
     #   #   { name: 'assistant', text: 'こんにちは！' }
     #   # ]
-    def localize_chat(chat, target_locale:, source_locale: nil, fast: nil, reference: nil, on_progress: nil, concurrent: false, &block)
+    def localize_chat(chat, target_locale:, source_locale:, fast: nil, reference: nil, on_progress: nil, concurrent: false, &block)
       raise ValidationError, 'Target locale is required' if target_locale.nil? || target_locale.empty?
       raise ValidationError, 'Chat cannot be nil' if chat.nil?
       raise ValidationError, 'Chat must be an Array' unless chat.is_a?(Array)
@@ -335,7 +339,7 @@ module LingoDotDev
     #
     # @param html [String] the HTML document string to be localized
     # @param target_locale [String] the target locale code (e.g., 'es', 'fr', 'ja')
-    # @param source_locale [String, nil] the source locale code (optional, auto-detected if not provided)
+    # @param source_locale [String] the source locale code (e.g., 'en')
     # @param fast [Boolean, nil] enable fast mode for quicker results (optional)
     # @param reference [Hash, nil] additional context for translation (optional)
     # @param on_progress [Proc, nil] callback for progress updates (optional)
@@ -351,9 +355,9 @@ module LingoDotDev
     #
     # @example Basic usage
     #   html = '<html><head><title>Hello</title></head><body><p>World</p></body></html>'
-    #   result = engine.localize_html(html, target_locale: 'es')
+    #   result = engine.localize_html(html, target_locale: 'es', source_locale: 'en')
     #   # => "<html lang=\"es\">..."
-    def localize_html(html, target_locale:, source_locale: nil, fast: nil, reference: nil, on_progress: nil, concurrent: false, &block)
+    def localize_html(html, target_locale:, source_locale:, fast: nil, reference: nil, on_progress: nil, concurrent: false, &block)
       raise ValidationError, 'Target locale is required' if target_locale.nil? || target_locale.empty?
       raise ValidationError, 'HTML cannot be nil' if html.nil?
 
@@ -508,7 +512,7 @@ module LingoDotDev
     #
     # @param text [String] the text to localize
     # @param target_locales [Array<String>] array of target locale codes
-    # @param source_locale [String, nil] the source locale code (optional, auto-detected if not provided)
+    # @param source_locale [String] the source locale code (e.g., 'en')
     # @param fast [Boolean, nil] enable fast mode for quicker results (optional)
     # @param reference [Hash, nil] additional context for translation (optional)
     # @param concurrent [Boolean] enable concurrent processing (default: false)
@@ -519,12 +523,12 @@ module LingoDotDev
     # @raise [APIError] if any API request fails
     #
     # @example Basic usage
-    #   results = engine.batch_localize_text('Hello', target_locales: ['es', 'fr', 'de'])
+    #   results = engine.batch_localize_text('Hello', target_locales: ['es', 'fr', 'de'], source_locale: 'en')
     #   # => ["Hola", "Bonjour", "Hallo"]
     #
     # @example With concurrent processing
-    #   results = engine.batch_localize_text('Hello', target_locales: ['es', 'fr', 'de', 'ja'], concurrent: true)
-    def batch_localize_text(text, target_locales:, source_locale: nil, fast: nil, reference: nil, concurrent: false)
+    #   results = engine.batch_localize_text('Hello', target_locales: ['es', 'fr', 'de', 'ja'], source_locale: 'en', concurrent: true)
+    def batch_localize_text(text, target_locales:, source_locale:, fast: nil, reference: nil, concurrent: false)
       raise ValidationError, 'Text cannot be nil' if text.nil?
       raise ValidationError, 'Target locales must be an Array' unless target_locales.is_a?(Array)
       raise ValidationError, 'Target locales cannot be empty' if target_locales.empty?
@@ -559,7 +563,7 @@ module LingoDotDev
     #
     # @param objects [Array<Hash>] array of Hash objects to localize
     # @param target_locale [String] the target locale code (e.g., 'es', 'fr', 'ja')
-    # @param source_locale [String, nil] the source locale code (optional, auto-detected if not provided)
+    # @param source_locale [String] the source locale code (e.g., 'en')
     # @param fast [Boolean, nil] enable fast mode for quicker results (optional)
     # @param reference [Hash, nil] additional context for translation (optional)
     # @param concurrent [Boolean] enable concurrent processing (default: false)
@@ -574,12 +578,12 @@ module LingoDotDev
     #     { title: 'Welcome', body: 'Hello there' },
     #     { title: 'About', body: 'Learn more' }
     #   ]
-    #   results = engine.batch_localize_objects(objects, target_locale: 'es')
+    #   results = engine.batch_localize_objects(objects, target_locale: 'es', source_locale: 'en')
     #   # => [
     #   #   { title: "Bienvenido", body: "Hola" },
     #   #   { title: "Acerca de", body: "Aprende más" }
     #   # ]
-    def batch_localize_objects(objects, target_locale:, source_locale: nil, fast: nil, reference: nil, concurrent: false)
+    def batch_localize_objects(objects, target_locale:, source_locale:, fast: nil, reference: nil, concurrent: false)
       raise ValidationError, 'Objects must be an Array' unless objects.is_a?(Array)
       raise ValidationError, 'Objects cannot be empty' if objects.empty?
       raise ValidationError, 'Target locale is required' if target_locale.nil? || target_locale.empty?
@@ -637,7 +641,7 @@ module LingoDotDev
 
       begin
         response = make_request(
-          "#{config.api_url}/recognize",
+          "#{config.api_url}/process/recognize",
           json: { text: text }
         )
 
@@ -658,7 +662,7 @@ module LingoDotDev
     #   # => { email: "user@example.com", id: "user-id" }
     def whoami
       begin
-        response = make_request("#{config.api_url}/whoami")
+        response = make_request("#{config.api_url}/users/me", method: :get)
 
         status_code = response.code.to_i
         return nil unless status_code >= 200 && status_code < 300
@@ -680,10 +684,11 @@ module LingoDotDev
     #
     # @param content [String, Hash] the content to translate (String for text, Hash for object)
     # @param api_key [String] your Lingo.dev API key
+    # @param engine_id [String, nil] the engine ID for localization processing (optional)
     # @param target_locale [String] the target locale code (e.g., 'es', 'fr', 'ja')
-    # @param source_locale [String, nil] the source locale code (optional, auto-detected if not provided)
+    # @param source_locale [String] the source locale code (e.g., 'en')
     # @param fast [Boolean] enable fast mode for quicker results (default: true)
-    # @param api_url [String] the API endpoint URL (default: 'https://engine.lingo.dev')
+    # @param api_url [String] the API endpoint URL (default: 'https://api.lingo.dev')
     #
     # @return [String, Hash] localized content (String if input was String, Hash if input was Hash)
     #
@@ -691,18 +696,20 @@ module LingoDotDev
     # @raise [APIError] if the API request fails
     #
     # @example Translate text
-    #   result = LingoDotDev::Engine.quick_translate('Hello', api_key: 'your-api-key', target_locale: 'es')
+    #   result = LingoDotDev::Engine.quick_translate('Hello', api_key: 'your-api-key', engine_id: 'your-engine-id', target_locale: 'es', source_locale: 'en')
     #   # => "Hola"
     #
     # @example Translate object
     #   result = LingoDotDev::Engine.quick_translate(
     #     { greeting: 'Hello', farewell: 'Goodbye' },
     #     api_key: 'your-api-key',
-    #     target_locale: 'fr'
+    #     engine_id: 'your-engine-id',
+    #     target_locale: 'fr',
+    #     source_locale: 'en'
     #   )
     #   # => { greeting: "Bonjour", farewell: "Au revoir" }
-    def self.quick_translate(content, api_key:, target_locale:, source_locale: nil, fast: true, api_url: 'https://engine.lingo.dev')
-      engine = new(api_key: api_key, api_url: api_url)
+    def self.quick_translate(content, api_key:, engine_id: nil, target_locale:, source_locale:, fast: true, api_url: 'https://api.lingo.dev')
+      engine = new(api_key: api_key, engine_id: engine_id, api_url: api_url)
       case content
       when String
         engine.localize_text(
@@ -731,10 +738,11 @@ module LingoDotDev
     #
     # @param content [String, Hash] the content to translate (String for text, Hash for object)
     # @param api_key [String] your Lingo.dev API key
+    # @param engine_id [String, nil] the engine ID for localization processing (optional)
     # @param target_locales [Array<String>] array of target locale codes
-    # @param source_locale [String, nil] the source locale code (optional, auto-detected if not provided)
+    # @param source_locale [String] the source locale code (e.g., 'en')
     # @param fast [Boolean] enable fast mode for quicker results (default: true)
-    # @param api_url [String] the API endpoint URL (default: 'https://engine.lingo.dev')
+    # @param api_url [String] the API endpoint URL (default: 'https://api.lingo.dev')
     #
     # @return [Array<String>, Array<Hash>] array of localized results (Strings if input was String, Hashes if input was Hash)
     #
@@ -745,7 +753,9 @@ module LingoDotDev
     #   results = LingoDotDev::Engine.quick_batch_translate(
     #     'Hello',
     #     api_key: 'your-api-key',
-    #     target_locales: ['es', 'fr', 'de']
+    #     engine_id: 'your-engine-id',
+    #     target_locales: ['es', 'fr', 'de'],
+    #     source_locale: 'en'
     #   )
     #   # => ["Hola", "Bonjour", "Hallo"]
     #
@@ -753,11 +763,12 @@ module LingoDotDev
     #   results = LingoDotDev::Engine.quick_batch_translate(
     #     { greeting: 'Hello' },
     #     api_key: 'your-api-key',
-    #     target_locales: ['es', 'fr']
+    #     target_locales: ['es', 'fr'],
+    #     source_locale: 'en'
     #   )
     #   # => [{ greeting: "Hola" }, { greeting: "Bonjour" }]
-    def self.quick_batch_translate(content, api_key:, target_locales:, source_locale: nil, fast: true, api_url: 'https://engine.lingo.dev')
-      engine = new(api_key: api_key, api_url: api_url)
+    def self.quick_batch_translate(content, api_key:, engine_id: nil, target_locales:, source_locale:, fast: true, api_url: 'https://api.lingo.dev')
+      engine = new(api_key: api_key, engine_id: engine_id, api_url: api_url)
       case content
       when String
         engine.batch_localize_text(
@@ -784,24 +795,28 @@ module LingoDotDev
 
     private
 
-    def make_request(url, json: nil)
+    def make_request(url, json: nil, method: :post)
       uri = URI(url)
       http = Net::HTTP.new(uri.host, uri.port)
       http.use_ssl = true
       http.read_timeout = 60
       http.open_timeout = 60
 
-      request = Net::HTTP::Post.new(uri.path)
-      request['Authorization'] = "Bearer #{config.api_key}"
+      request = if method == :get
+        Net::HTTP::Get.new(uri.path)
+      else
+        Net::HTTP::Post.new(uri.path)
+      end
+      request['X-API-Key'] = config.api_key
       request['Content-Type'] = 'application/json; charset=utf-8'
       request.body = JSON.generate(json) if json
 
       http.request(request)
     end
 
-    def localize_raw(payload, target_locale:, source_locale: nil, fast: nil, reference: nil, concurrent: false, &progress_callback)
+    def localize_raw(payload, target_locale:, source_locale:, fast: nil, reference: nil, concurrent: false, &progress_callback)
+      raise ValidationError, 'Source locale is required' if source_locale.nil? || (source_locale.is_a?(String) && source_locale.empty?)
       chunked_payload = extract_payload_chunks(payload)
-      workflow_id = SecureRandom.hex(8)
 
       processed_chunks = if concurrent && !progress_callback
         threads = chunked_payload.map do |chunk|
@@ -811,8 +826,7 @@ module LingoDotDev
               target_locale: target_locale,
               source_locale: source_locale,
               fast: fast,
-              reference: reference,
-              workflow_id: workflow_id
+              reference: reference
             )
           end
         end
@@ -826,8 +840,7 @@ module LingoDotDev
             target_locale: target_locale,
             source_locale: source_locale,
             fast: fast,
-            reference: reference,
-            workflow_id: workflow_id
+            reference: reference
           )
 
           progress_callback&.call(percentage_completed, chunk, processed_chunk)
@@ -841,18 +854,16 @@ module LingoDotDev
       result
     end
 
-    def localize_chunk(chunk, target_locale:, source_locale:, fast:, reference:, workflow_id:)
+    def localize_chunk(chunk, target_locale:, source_locale:, fast:, reference:)
       request_body = {
-        params: {
-          workflowId: workflow_id,
-          fast: fast || false
-        },
-        locale: {
-          source: source_locale,
-          target: target_locale
-        },
-        data: chunk
+        params: { fast: fast || false },
+        sourceLocale: source_locale,
+        targetLocale: target_locale,
+        data: chunk,
+        sessionId: @session_id
       }
+
+      request_body[:engineId] = config.engine_id unless config.engine_id.nil?
 
       if reference && !reference.empty?
         raise ValidationError, 'Reference must be a Hash' unless reference.is_a?(Hash)
@@ -863,7 +874,7 @@ module LingoDotDev
 
       begin
         response = make_request(
-          "#{config.api_url}/i18n",
+          "#{config.api_url}/process/localize",
           json: request_body
         )
 
@@ -926,7 +937,7 @@ module LingoDotDev
       if status_code >= 500
         raise ServerError, "Server error (#{status_code}): #{response.message}. #{response.body}. This may be due to temporary service issues."
       elsif status_code == 400
-        raise ValidationError, "Invalid request (#{status_code}): #{response.message}"
+        raise ValidationError, "Invalid request (#{status_code}): #{response.message}. #{response.body}"
       elsif status_code == 401
         raise AuthenticationError, "Authentication failed (#{status_code}): #{response.message}"
       else

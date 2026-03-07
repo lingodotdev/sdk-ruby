@@ -210,13 +210,12 @@ result = engine.localize_text(
 
 ### Reference context
 
-Provide additional context to improve translation accuracy:
+Provide existing translations as reference to improve translation accuracy. The `reference` hash maps locale codes to key-value content objects:
 
 ```ruby
 reference = {
-  context: 'greeting',
-  tone: 'formal',
-  domain: 'business'
+  'es' => { 'greeting' => 'Hola', 'farewell' => 'Adiós' },
+  'fr' => { 'greeting' => 'Bonjour', 'farewell' => 'Au revoir' }
 }
 
 result = engine.localize_text(
@@ -314,7 +313,7 @@ Localizes a string to the target locale.
   - `text` (String): Text to localize
   - `target_locale` (String): Target locale code (e.g., 'es', 'fr', 'ja')
   - `source_locale` (String): Source locale code (e.g., 'en')
-  - `reference` (Hash, optional): Additional context for translation
+  - `reference` (Hash, optional): Existing translations keyed by locale code, e.g. `{ 'es' => { 'key' => 'valor' } }`
   - `on_progress` (Proc, optional): Progress callback
   - `concurrent` (Boolean): Enable concurrent processing
   - `&block`: Alternative progress callback
@@ -342,7 +341,7 @@ Localizes an HTML document while preserving structure and formatting. Handles bo
   - `html` (String): HTML document string to localize
   - `target_locale` (String): Target locale code (e.g., 'es', 'fr', 'ja')
   - `source_locale` (String): Source locale code (e.g., 'en')
-  - `reference` (Hash, optional): Additional context for translation
+  - `reference` (Hash, optional): Existing translations keyed by locale code, e.g. `{ 'es' => { 'key' => 'valor' } }`
   - `on_progress` (Proc, optional): Progress callback
   - `concurrent` (Boolean): Enable concurrent processing
   - `&block`: Alternative progress callback

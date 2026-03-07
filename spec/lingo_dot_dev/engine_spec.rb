@@ -69,7 +69,7 @@ RSpec.describe LingoDotDev::Engine do
 
     it 'localizes text with reference context' do
       engine = described_class.new(api_key: api_key, engine_id: engine_id)
-      reference = { context: 'greeting' }
+      reference = { 'es' => { 'text' => 'Hola' } }
       result = engine.localize_text(
         'Hello',
         target_locale: target_locale,

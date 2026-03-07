@@ -190,7 +190,7 @@ module LingoDotDev
     # @param target_locale [String] the target locale code (e.g., 'es', 'fr', 'ja')
     # @param source_locale [String] the source locale code (e.g., 'en')
     # @param fast [Boolean, nil] enable fast mode for quicker results (optional)
-    # @param reference [Hash, nil] additional context for translation (optional)
+    # @param reference [Hash, nil] existing translations keyed by locale code, e.g. { 'es' => { 'key' => 'valor' } } (optional)
     # @param on_progress [Proc, nil] callback for progress updates (optional)
     # @param concurrent [Boolean] enable concurrent processing (default: false)
     #
@@ -237,7 +237,7 @@ module LingoDotDev
     # @param target_locale [String] the target locale code (e.g., 'es', 'fr', 'ja')
     # @param source_locale [String] the source locale code (e.g., 'en')
     # @param fast [Boolean, nil] enable fast mode for quicker results (optional)
-    # @param reference [Hash, nil] additional context for translation (optional)
+    # @param reference [Hash, nil] existing translations keyed by locale code, e.g. { 'es' => { 'key' => 'valor' } } (optional)
     # @param on_progress [Proc, nil] callback for progress updates (optional)
     # @param concurrent [Boolean] enable concurrent processing (default: false)
     #
@@ -283,7 +283,7 @@ module LingoDotDev
     # @param target_locale [String] the target locale code (e.g., 'es', 'fr', 'ja')
     # @param source_locale [String] the source locale code (e.g., 'en')
     # @param fast [Boolean, nil] enable fast mode for quicker results (optional)
-    # @param reference [Hash, nil] additional context for translation (optional)
+    # @param reference [Hash, nil] existing translations keyed by locale code, e.g. { 'es' => { 'key' => 'valor' } } (optional)
     # @param on_progress [Proc, nil] callback for progress updates (optional)
     # @param concurrent [Boolean] enable concurrent processing (default: false)
     #
@@ -341,7 +341,7 @@ module LingoDotDev
     # @param target_locale [String] the target locale code (e.g., 'es', 'fr', 'ja')
     # @param source_locale [String] the source locale code (e.g., 'en')
     # @param fast [Boolean, nil] enable fast mode for quicker results (optional)
-    # @param reference [Hash, nil] additional context for translation (optional)
+    # @param reference [Hash, nil] existing translations keyed by locale code, e.g. { 'es' => { 'key' => 'valor' } } (optional)
     # @param on_progress [Proc, nil] callback for progress updates (optional)
     # @param concurrent [Boolean] enable concurrent processing (default: false)
     #
@@ -514,7 +514,7 @@ module LingoDotDev
     # @param target_locales [Array<String>] array of target locale codes
     # @param source_locale [String] the source locale code (e.g., 'en')
     # @param fast [Boolean, nil] enable fast mode for quicker results (optional)
-    # @param reference [Hash, nil] additional context for translation (optional)
+    # @param reference [Hash, nil] existing translations keyed by locale code, e.g. { 'es' => { 'key' => 'valor' } } (optional)
     # @param concurrent [Boolean] enable concurrent processing (default: false)
     #
     # @return [Array<String>] array of localized strings in the same order as target_locales
@@ -565,7 +565,7 @@ module LingoDotDev
     # @param target_locale [String] the target locale code (e.g., 'es', 'fr', 'ja')
     # @param source_locale [String] the source locale code (e.g., 'en')
     # @param fast [Boolean, nil] enable fast mode for quicker results (optional)
-    # @param reference [Hash, nil] additional context for translation (optional)
+    # @param reference [Hash, nil] existing translations keyed by locale code, e.g. { 'es' => { 'key' => 'valor' } } (optional)
     # @param concurrent [Boolean] enable concurrent processing (default: false)
     #
     # @return [Array<Hash>] array of localized Hash objects in the same order as input

@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    lingodotdev (0.2.0)
+    lingodotdev (0.2.1)
       json (~> 2.0)
       nokogiri (~> 1.0)
 
